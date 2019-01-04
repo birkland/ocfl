@@ -1,0 +1,59 @@
+{
+    "id": "urn:/a/b/c/obj1",
+    "type": "https://ocfl.io/1.0/spec/#inventory",
+    "digestAlgorithm": "fake",
+    "head": "v1",
+    "manifest": {
+        "abc0": [
+            "v1/content/1"
+        ],
+        "abc1": [
+            "v3/content/2"
+        ]
+    },
+    "versions": {
+        "v1": {
+            "created": "2019-01-07T12:00:00.000Z",
+            "message": "One file",
+            "user": {
+                "address": "Bob@example.org",
+                "name": "Bob"
+            },
+            "state": {
+                "abc0": [
+                    "obj1.txt",
+                    "obj1-copy.txt"
+                ]
+            }
+        },
+        "v2": {
+            "created": "2019-01-07T12:00:00.001Z",
+            "message": "Oops",
+            "user": {
+                "address": "Bob@example.org",
+                "name": "Bob"
+            },
+            "state": {
+                "abc0": [
+                    "obj1.txt"
+                ]
+            }
+        },
+        "v3": {
+            "created": "2019-01-07T12:00:01.000Z",
+            "message": "Start a new chapter",
+            "user": {
+                "address": "Bob@example.org",
+                "name": "Bob"
+            },
+            "state": {
+                "abc0": [
+                    "obj1.txt"
+                ],
+                "abc1": [
+                    "obj1-new.txt"
+                ]
+            }
+        }
+    }
+}

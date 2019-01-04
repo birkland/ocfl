@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/birkland/ocfl/internal/resolv"
+	"github.com/birkland/ocfl"
+	"github.com/birkland/ocfl/drivers/file"
+	"github.com/birkland/ocfl/resolv"
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -57,11 +60,20 @@ var ls cli.Command = cli.Command{
 }
 
 func lsAction(args []string) error {
-	resolver := resolv.NewCxt()
+	resolver := resolv.NewCxt(mainOpts.root)
 	entity, err := resolver.ParseRef(args)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Could not parse ocfl entity %s", args)
 	}
+
+	scope, err := file.NewScope(entity, ocfl.Unknown)
+	if err != nil {
+		return errors.Wrapf(err, "Could not establish scope for file search in %s", entity.Addr)
+	}
+
+	scope.Walk(func(ref resolv.EntityRef) error {
+		return nil
+	})
 
 	fmt.Println(entity)
 	return nil
