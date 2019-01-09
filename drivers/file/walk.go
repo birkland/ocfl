@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/metadata"
@@ -13,8 +14,8 @@ import (
 )
 
 const (
-	stopWalking = true
-	keepWalking = false
+	dontGoDeeper = true
+	goDeeper     = false
 )
 
 // Walker serially iterates through OCFL entities and invokes a callback for each one.  Returns with a nil
@@ -26,24 +27,24 @@ type Walker interface {
 
 // Scope defines a bounded set of OCFL entries (e.g. everything under a given root)
 type Scope struct {
-	root   resolv.EntityRef
-	parent resolv.EntityRef
-	t      ocfl.Type
+	root      *resolv.EntityRef
+	startFrom *resolv.EntityRef
+	desired   ocfl.Type
 }
 
 // NewScope defines a scope for ocfl entities underneath the given parent entity
 // Logical choices for a parent include an OCFL root, an ocfl object, or
 // an ocfl version.
-func NewScope(under resolv.EntityRef, t ocfl.Type) (*Scope, error) {
-	root, err := findOcflRoot(under)
+func NewScope(under *resolv.EntityRef, t ocfl.Type) (*Scope, error) {
+	root, err := findRoot(under, ocfl.Root)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Scope{
-		root:   *root,
-		parent: under,
-		t:      t,
+		root:      root,
+		startFrom: under,
+		desired:   t,
 	}, nil
 }
 
@@ -51,44 +52,66 @@ func NewScope(under resolv.EntityRef, t ocfl.Type) (*Scope, error) {
 // Uses a two-step algorithm for iterating entities:
 // (a) when starting from an ocfl root or intermediate node, walk directories until an object root is found
 // (b) walk the entities in an object (versions, files) using data from the manifest rather than the filesystem
-func (w *Scope) Walk(f func(resolv.EntityRef) error) error {
-	node := &w.parent
-
-	if node.Addr == "" {
-		return fmt.Errorf("no directory name provided")
-	}
-
-	if node.Type == ocfl.Unknown {
-		return fmt.Errorf("cannot determine whether %s is in an ocfl hierarchy", w.parent.Addr)
-	}
+//
+// TODO: make this parallel!
+func (s *Scope) Walk(f func(resolv.EntityRef) error) error {
+	node := s.startFrom
 
 	// If we're somewhere underneath an OCFL object, we need to find the path of
 	// the object root in order to get its manifest and walk it.
 	if node.Type < ocfl.Object {
 		var err error
-		node, err = findObjectRoot(node)
+		node, err = findRoot(node, ocfl.Object)
+		if err != nil {
+			return err
+		}
+	}
+
+	if node.Type == ocfl.Root && s.contains(ocfl.Root) {
+		err := f(*node)
 		if err != nil {
 			return err
 		}
 	}
 
 	// At this point, node points to an ocfl root, intermediate node, or an ocfl object root
-	return fsWalk(node.Addr, func(ospath string, e *godirwalk.Dirent) (bool, error) {
+	err := fsWalk(node.Addr, func(ospath string, e *godirwalk.Dirent) (bool, error) {
 
-		if isRoot, err := isObjectRoot(ospath, e.ModeType()); isRoot && err == nil {
-
-			// We've found an object root, so we now walk its manifest and stop walking files beneath it.
-			return stopWalking, w.walkObject(ospath, f)
-		} else if err != nil {
-			return stopWalking, err
+		// We dont' care about regular files
+		if !e.IsDir() && !e.IsSymlink() {
+			return dontGoDeeper, nil
 		}
 
-		// This is not an object root, so just continue the walk
-		return keepWalking, nil
+		// An object?  If so, walk its manifest instead of the files under it
+		if objectRoot, err := isRoot(ospath, ocflObjectRoot); objectRoot && err == nil {
+			return dontGoDeeper, s.walkObject(ospath, f)
+		} else if err != nil {
+			return dontGoDeeper, err
+		}
+
+		// Skip root, process intermdiate and continue
+		if ospath != s.root.Addr && s.contains(ocfl.Intermediate) {
+			err := f(resolv.EntityRef{
+				ID:     strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(ospath, s.root.Addr)), "/"),
+				Addr:   ospath,
+				Type:   ocfl.Intermediate,
+				Parent: s.root,
+			})
+			if err != nil {
+				return dontGoDeeper, err
+			}
+		}
+
+		return goDeeper, nil
 	})
+	if err != nil {
+		return errors.Wrapf(err, "error performing walk")
+	}
+	return nil
 }
 
-func (w *Scope) walkObject(path string, f func(resolv.EntityRef) error) (err error) {
+// Walk the OCFL manifest
+func (s *Scope) walkObject(path string, f func(resolv.EntityRef) error) (err error) {
 	inv := metadata.Inventory{}
 
 	file, err := os.Open(filepath.Join(path, metadata.InventoryFile))
@@ -97,7 +120,7 @@ func (w *Scope) walkObject(path string, f func(resolv.EntityRef) error) (err err
 	}
 	defer func() {
 		if e := file.Close(); e != nil {
-			err = errors.Wrapf(err, "Error closing file at %s", path)
+			err = errors.Wrapf(err, "error closing file at %s", path)
 		}
 	}()
 	err = metadata.Parse(file, &inv)
@@ -108,26 +131,43 @@ func (w *Scope) walkObject(path string, f func(resolv.EntityRef) error) (err err
 	object := resolv.EntityRef{
 		ID:     inv.ID,
 		Type:   ocfl.Object,
-		Parent: &w.root,
+		Parent: s.root,
 		Addr:   path,
 	}
 
-	if w.contains(ocfl.Object) {
+	if s.contains(ocfl.Object) {
 		err := f(object)
 		if err != nil {
 			return err
 		}
 	}
 
-	if w.t <= ocfl.Version {
-		return w.walkVersions(&inv, &object, f)
+	if s.desired <= ocfl.Version {
+		return s.walkVersions(&inv, &object, f)
 	}
 
 	return nil
 }
 
-func (w *Scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, f func(resolv.EntityRef) error) error {
-	for vID := range inv.Versions {
+// Walk the versions in an OCFL manifest
+func (s *Scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, f func(resolv.EntityRef) error) error {
+	versions := inv.Versions
+
+	// A little awkward, but if we want a specific version or file instead of all versions or files...
+	if s.startFrom.Type == ocfl.Version || s.startFrom.Type == ocfl.File {
+
+		scopeVersion, _ := findRoot(s.startFrom, ocfl.Version) // An error here is impossible
+
+		if _, ok := versions[scopeVersion.ID]; !ok {
+			return fmt.Errorf("No version %s exists in %s", scopeVersion.ID, object.ID)
+		}
+
+		versions = map[string]metadata.Version{
+			scopeVersion.ID: {},
+		}
+	}
+
+	for vID := range versions {
 		version := resolv.EntityRef{
 			ID:     vID,
 			Type:   ocfl.Version,
@@ -135,22 +175,27 @@ func (w *Scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 			Addr:   filepath.Join(object.Addr, vID),
 		}
 
-		if w.contains(ocfl.Version) {
+		if s.contains(ocfl.Version) {
 			err := f(version)
 			if err != nil {
 				return err
 			}
 		}
 
-		if w.t <= ocfl.File {
+		if s.desired <= ocfl.File {
 			files, _ := inv.Files(vID)
 			for _, file := range files {
+
+				// For the unusual case that the scope is just a single file
+				if s.startFrom.Type == ocfl.File && s.startFrom.ID != file.LogicalPath {
+					continue
+				}
 
 				err := f(resolv.EntityRef{
 					ID:     file.LogicalPath,
 					Type:   ocfl.File,
 					Parent: &version,
-					Addr:   file.PhysicalPath,
+					Addr:   filepath.Join(object.Addr, file.PhysicalPath),
 				})
 				if err != nil {
 					return err
@@ -162,12 +207,12 @@ func (w *Scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 	return nil
 }
 
-func (w Scope) contains(t ocfl.Type) bool {
-	if w.t == ocfl.Unknown {
+func (s Scope) contains(t ocfl.Type) bool {
+	if s.desired == ocfl.Any {
 		return true
 	}
 
-	return w.t == t
+	return s.desired == t
 }
 
 type skip struct{}
@@ -183,6 +228,10 @@ func (skip) Error() string {
 type fsCallback func(ospath string, e *godirwalk.Dirent) (terminal bool, err error)
 
 func fsWalk(dir string, f fsCallback) error {
+
+	if _, err := os.Stat(dir); err != nil {
+		return errors.Wrapf(err, "error walking directory %s", dir)
+	}
 
 	return godirwalk.Walk(dir, &godirwalk.Options{
 		Callback: func(ospath string, dirent *godirwalk.Dirent) error {

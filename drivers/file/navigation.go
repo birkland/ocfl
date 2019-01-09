@@ -11,35 +11,68 @@ import (
 )
 
 const ocflObjectRoot = "0=ocfl_object_1.0"
+const ocflRoot = "0=ocfl_1.0"
 
-func findOcflRoot(ref resolv.EntityRef) (*resolv.EntityRef, error) {
+func findRoot(ref *resolv.EntityRef, t ocfl.Type) (*resolv.EntityRef, error) {
 
-	for r := &ref; r != nil; r = r.Parent {
-		if r != nil && r.Type == ocfl.Root {
+	if ref == nil {
+		return nil, fmt.Errorf("cannot find root, entity ref is null")
+	}
+
+	// The easy way
+	for r := ref; r != nil; r = r.Parent {
+		if r != nil && r.Type == t {
 			return r, nil
 		}
 	}
 
-	return nil, fmt.Errorf("Could not find OCFL root of %s", ref.Addr)
-}
-
-func findObjectRoot(ref *resolv.EntityRef) (*resolv.EntityRef, error) {
-	return nil, nil
-}
-
-func isObjectRoot(path string, mode os.FileMode) (bool, error) {
-
-	if !mode.IsDir() {
-		// If this isn't a directory, it crtainly isn't an OCFL root
-		return false, nil
+	// The hard way.  No root was given, so crawl up directories and find the root
+	if t == ocfl.Root {
+		return crawlForOcflRoot(ref.Addr)
 	}
 
-	namaste, err := os.Stat(filepath.Join(path, ocflObjectRoot))
+	return nil, fmt.Errorf("Could not find %s root of %s", t, ref.Addr)
+}
 
-	// The only error we expect is "file not found"
+// Crawl up a directory hierarchy until we reach an OCFL root.
+func crawlForOcflRoot(addr string) (*resolv.EntityRef, error) {
+	parent := filepath.Dir(addr)
+
+	found, err := isRoot(parent, ocflRoot)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error detecting OCFL root")
+	}
+
+	if !found && parent == addr {
+		return nil, fmt.Errorf("no ocfl root found crawling up to /")
+	}
+
+	if !found {
+		return crawlForOcflRoot(parent)
+	}
+
+	abs, err := filepath.Abs(parent)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error creating absolute path from %s", addr)
+	}
+
+	return &resolv.EntityRef{
+		Type: ocfl.Root,
+		Addr: abs,
+	}, nil
+}
+
+// Detect if this is an OCFL root or OCFL object root, as per the desired
+// namaste file
+func isRoot(path, namaste string) (bool, error) {
+	nf, err := os.Stat(filepath.Join(path, namaste))
+
+	// We expect a "file not found" error if this isn't a root,
+	// and simply return false in that case.  Anything else (e.g. "permission denied"),
+	// we should truly return as an error
 	if err != nil && !os.IsNotExist(err) {
-		return false, errors.Wrapf(err, "srror detecting namaste file in %s", path)
+		return false, errors.Wrapf(err, "error detecting namaste file in %s", path)
 	}
 
-	return err == nil && namaste.Mode().IsRegular(), nil
+	return err == nil && nf.Mode().IsRegular(), nil
 }

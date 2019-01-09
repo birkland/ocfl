@@ -6,10 +6,10 @@ import (
 
 // EntityRef represents a single OCFL entity.
 type EntityRef struct {
-	ID     string
-	Addr   string
-	Parent *EntityRef
-	Type   ocfl.Type
+	ID     string     // The logical ID of the entity (string, uri, or relative file path)
+	Addr   string     // Physical address of the entity (absolute file path or URI)
+	Parent *EntityRef // Parent of next highest type that isn't an intermediate node (e.g. object parent is root)
+	Type   ocfl.Type  // Type of entity
 }
 
 // Cxt establishes a context for resolving OCFL entities,

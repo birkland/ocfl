@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/file"
@@ -66,14 +67,17 @@ func lsAction(args []string) error {
 		return errors.Wrapf(err, "Could not parse ocfl entity %s", args)
 	}
 
-	scope, err := file.NewScope(entity, ocfl.Unknown)
+	scope, err := file.NewScope(&entity, ocfl.Any)
 	if err != nil {
 		return errors.Wrapf(err, "Could not establish scope for file search in %s", entity.Addr)
 	}
 
-	scope.Walk(func(ref resolv.EntityRef) error {
+	err = scope.Walk(func(ref resolv.EntityRef) error {
 		return nil
 	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Errors encountered: %s", err)
+	}
 
 	fmt.Println(entity)
 	return nil
