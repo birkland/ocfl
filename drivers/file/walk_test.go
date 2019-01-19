@@ -37,12 +37,13 @@ func TestWalkScopeTypes(t *testing.T) {
 	for typ, expected := range cases {
 		var visited []resolv.EntityRef
 
-		doWalk(t, &ocflRoot, typ, func(ref resolv.EntityRef) error {
+		doWalk(t, typ, func(ref resolv.EntityRef) error {
 			visited = append(visited, ref)
 			return nil
-		})
+		}, file.Driver{}, ocflRoot.Addr)
 
 		if len(visited) != expected {
+
 			t.Errorf("Expected to find %d references of type %s, instead found %d", expected, typ, len(visited))
 		}
 	}
@@ -72,7 +73,7 @@ func TestWalkScopeStart(t *testing.T) {
 		ID:     "v3",
 	}
 
-	file := resolv.EntityRef{
+	phile := resolv.EntityRef{
 		Type:   ocfl.File,
 		Parent: &version,
 		Addr:   assertExists(t, filepath.Join(version.Addr, "content/2")),
@@ -87,7 +88,7 @@ func TestWalkScopeStart(t *testing.T) {
 		{&ocflRoot, ocfl.Object, 4}, // 4 objects in test data
 		{&object, ocfl.Version, 3},  // 3 versions in the object
 		{&version, ocfl.File, 2},    // 2 files in the version
-		{&file, ocfl.File, 1},       // Every file is itself
+		{&phile, ocfl.File, 1},      // Every file is itself
 	}
 
 	for _, c := range cases {
@@ -95,10 +96,10 @@ func TestWalkScopeStart(t *testing.T) {
 		t.Run(c.start.Type.String(), func(t *testing.T) {
 			var visited []resolv.EntityRef
 
-			doWalk(t, c.start, c.lookFor, func(ref resolv.EntityRef) error {
+			doWalk(t, c.lookFor, func(ref resolv.EntityRef) error {
 				visited = append(visited, ref)
 				return nil
-			})
+			}, file.Driver{}, c.start.Addr)
 
 			if len(visited) != c.expected {
 				t.Errorf("Expected to find %d references of type %s, instead found %d: ", c.expected, c.lookFor, len(visited))
@@ -114,66 +115,14 @@ func TestBadScopes(t *testing.T) {
 	corruptInventoryPath := assertExists(t, filepath.Join(badObjectRoot, "corruptInventory"))
 	missingInventoryPath := assertExists(t, filepath.Join(badObjectRoot, "missingInventory"))
 
-	cases := map[string]*resolv.EntityRef{
-		"nullRoot": nil,
-		"zeroRoot": {},
-		"badType": {
-			Type: ocfl.Any,
-			Addr: assertExists(t, root(t, testroot).Addr),
-		},
-		"noneExistantRoot": {
-			Type: ocfl.Root,
-			Addr: "DOES_NOT_EXIST",
-		},
-		"nonExistantIntermediate": {
-			Type: ocfl.Intermediate,
-			Addr: "DOES_NOT_EXIST",
-		},
-		"nonExistantObject": {
-			Type: ocfl.Object,
-			Addr: "DOES_NOT_EXIST",
-		},
-		"corruptObjectInventory": {
-			Type: ocfl.Object,
-			Addr: corruptInventoryPath,
-		},
-		"missingObjectInventory": {
-			Type: ocfl.Object,
-			Addr: missingInventoryPath,
-		},
-		"objectNotInARoot": {
-			Type: ocfl.Object,
-			Addr: assertExists(t, root(t, "").Addr),
-		},
-		"badVersionID": {
-			Type: ocfl.Version,
-			ID:   "DOES_NOT_EXIST",
-			Addr: assertExists(t, filepath.Join(root(t, testroot).Addr, "obj4/v1")),
-			Parent: &resolv.EntityRef{
-				Type: ocfl.Object,
-				Addr: assertExists(t, filepath.Join(root(t, testroot).Addr, "obj4")),
-			},
-		},
-		"badVersionObjectDir": {
-			Type: ocfl.Version,
-			ID:   "v1",
-			Parent: &resolv.EntityRef{
-				Type: ocfl.Object,
-				Addr: assertExists(t, root(t, testroot).Addr),
-			},
-		},
-		"versionParentIsNull": {
-			Type: ocfl.Version,
-			ID:   "DOES_NOT_EXIST",
-		},
-		"nonExistantVersionParent": {
-			Type: ocfl.Version,
-			ID:   "v1",
-			Parent: &resolv.EntityRef{
-				Type: ocfl.Object,
-				Addr: "DOES_NOT_EXIST",
-			},
-		},
+	cases := map[string]string{
+		"zeroRoot":                "",
+		"nonExistantRoot":         "DOES_NOT_EXIST",
+		"nonExistantIntermediate": "DOES_NOT_EXIST",
+		"nonExistantObject":       "DOES_NOT_EXIST",
+		"corruptObjectInventory":  corruptInventoryPath,
+		"missingObjectInventory":  missingInventoryPath,
+		"objectNotInARoot":        assertExists(t, root(t, "").Addr),
 	}
 
 	for tname, c := range cases {
@@ -182,11 +131,10 @@ func TestBadScopes(t *testing.T) {
 
 			// Ultimately, we're checking to make sure an error is thrown
 			// either when defining the scope, or walking
-			scope, err := file.NewScope(c, ocfl.Any)
+			d := &file.Driver{}
+			err := d.Walk(ocfl.Any, func(resolv.EntityRef) error { return nil }, c)
 			if err == nil {
-				if scope.Walk(func(resolv.EntityRef) error { return nil }) == nil {
-					t.Error("Did not return an error!")
-				}
+				t.Error("Did not return an error!")
 			}
 		})
 	}
@@ -218,7 +166,7 @@ func TestWalkRefs(t *testing.T) {
 		Addr:   filepath.Join(object.Addr, "v2"),
 	}
 
-	file := resolv.EntityRef{
+	phile := resolv.EntityRef{
 		ID:     "obj1.txt",
 		Parent: &version,
 		Type:   ocfl.File,
@@ -227,14 +175,14 @@ func TestWalkRefs(t *testing.T) {
 
 	// We're not doing an exhaustive search.  Just check that the expected sample
 	// for each type is found in the results.
-	cases := []resolv.EntityRef{ocflRoot, intermediate, object, version, file}
+	cases := []resolv.EntityRef{ocflRoot, intermediate, object, version, phile}
 
 	var visited []resolv.EntityRef
 
-	doWalk(t, &ocflRoot, ocfl.Any, func(ref resolv.EntityRef) error {
+	doWalk(t, ocfl.Any, func(ref resolv.EntityRef) error {
 		visited = append(visited, ref)
 		return nil
-	})
+	}, file.Driver{}, ocflRoot.Addr)
 
 	for _, cas := range cases {
 		expected := cas
@@ -242,12 +190,17 @@ func TestWalkRefs(t *testing.T) {
 			var found int
 
 			for _, v := range visited {
-				t.Logf("Visited: %+v", v)
 
 				// File and Version types can't easily be tested by simple equality, since this test
 				// doesn't have the right pointer to use for the parent
-				if v == expected || (expected.Type < ocfl.Object && len(deep.Equal(v, expected)) == 0) {
+				if v == expected || len(deep.Equal(v, expected)) == 0 {
+
 					found++
+				} else if expected.ID == v.ID && expected.Addr == v.Addr {
+					t.Logf("NOT FOUND\n")
+					t.Logf("Expected: %+v\n", expected)
+					t.Logf("Visited: %+v\n", v)
+					t.Logf("Equality?%d\n", deep.Equal(v, expected))
 				}
 			}
 
@@ -267,19 +220,15 @@ func TestWalkAbort(t *testing.T) {
 		typ := eType
 		t.Run(typ.String(), func(t *testing.T) {
 
-			scope, err := file.NewScope(&root, typ)
-			if err != nil {
-				t.Error(err)
-			}
-
 			var count int
-			err = scope.Walk(func(ref resolv.EntityRef) error {
+			d := file.Driver{}
+			err := d.Walk(ocfl.Any, func(ref resolv.EntityRef) error {
 				if ref.Type == typ {
 					return fmt.Errorf("Threw an error")
 				}
 				count++
 				return nil
-			})
+			}, root.Addr)
 
 			if err == nil {
 				t.Errorf("Should have thrown an error")
@@ -311,19 +260,14 @@ func root(t *testing.T, name string) resolv.EntityRef {
 	}
 
 	return resolv.EntityRef{
-		ID:   ".",
+		ID:   "",
 		Type: ocfl.Root,
 		Addr: rootDir,
 	}
 }
 
-func doWalk(t *testing.T, from *resolv.EntityRef, typ ocfl.Type, f func(resolv.EntityRef) error) {
-	scope, err := file.NewScope(from, typ)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = scope.Walk(f)
+func doWalk(t *testing.T, typ ocfl.Type, f func(resolv.EntityRef) error, d file.Driver, from ...string) {
+	err := d.Walk(typ, f, from...)
 	if err != nil {
 		t.Error(err)
 	}

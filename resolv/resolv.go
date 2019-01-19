@@ -1,6 +1,8 @@
 package resolv
 
 import (
+	"fmt"
+
 	"github.com/birkland/ocfl"
 )
 
@@ -12,23 +14,64 @@ type EntityRef struct {
 	Type   ocfl.Type  // Type of entity
 }
 
+// Coords returns a slice of the logical coordinates of an entity ref, of
+// the form {objectID, versionID, logicalFilePath}
+func (e EntityRef) Coords() []string {
+	var coords []string
+	for ref := &e; ref.Parent != nil; ref = ref.Parent {
+		coords = append([]string{ref.ID}, coords...)
+	}
+
+	return coords
+}
+
+// Walker crawls through a bounded scope of OCFL entities "underneath" a start
+// location.  Given a location and a desired type, Walker will invoke the provided
+// callback any time an entity of the desired type is encountered.
+//
+// The walk locaiton may either be a single physical address (such as a file path or URI),
+// or it may be a sequence of logical OCFL identifiers, such as {objectID, versionID, logicalFilePath}
+// When providing logical identifiers, object IDs may be provided on their own, version IDs must be preceded
+// by an object ID, and logical file paths must be preceded by the version ID.
+//
+// If no location is given, the scope of the walk is implied to be the entirety of content under an OCFL root.
+type Walker interface {
+	Walk(desired ocfl.Type, cb func(EntityRef) error, loc ...string) error
+}
+
+// Driver provides basic OCFL access via some backend
+type Driver interface {
+	Walker
+}
+
+type Config struct {
+	Root    string
+	Drivers []Driver
+}
+
 // Cxt establishes a context for resolving OCFL entities,
 // e.g. an OCFL root, or a user
 type Cxt struct {
-	root *EntityRef
+	root   *EntityRef
+	config Config
 }
 
 // NewCxt establishes a new resolver context
-func NewCxt(root string) Cxt {
-	return Cxt{
-		root: &EntityRef{
-			Addr: root,
-			Type: ocfl.Root,
-		},
+func Init(cfg Config) (*Cxt, error) {
+	cxt := &Cxt{
+		config: cfg,
 	}
-}
-
-// ParseRef parses and resolves a set of strings into an EntityRef
-func (cxt *Cxt) ParseRef(refs []string) (EntityRef, error) {
-	return EntityRef{}, nil
+	if cfg.Root != "" {
+		for _, d := range cfg.Drivers {
+			err := d.Walk(ocfl.Root, func(r EntityRef) error {
+				cxt.root = &r
+				return nil
+			}, cfg.Root)
+			if err != nil {
+				continue
+			}
+			return cxt, nil
+		}
+	}
+	return nil, fmt.Errorf("No suitable driver found")
 }

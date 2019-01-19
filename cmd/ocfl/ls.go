@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/file"
 	"github.com/birkland/ocfl/resolv"
@@ -61,24 +58,12 @@ var ls cli.Command = cli.Command{
 }
 
 func lsAction(args []string) error {
-	resolver := resolv.NewCxt(mainOpts.root)
-	entity, err := resolver.ParseRef(args)
+	fs, err := file.NewDriver(mainOpts.root)
 	if err != nil {
-		return errors.Wrapf(err, "Could not parse ocfl entity %s", args)
+		return errors.Wrapf(err, "could not initialize file driver")
 	}
 
-	scope, err := file.NewScope(&entity, ocfl.Any)
-	if err != nil {
-		return errors.Wrapf(err, "Could not establish scope for file search in %s", entity.Addr)
-	}
-
-	err = scope.Walk(func(ref resolv.EntityRef) error {
+	return fs.Walk(ocfl.Any, func(resolv.EntityRef) error {
 		return nil
-	})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Errors encountered: %s", err)
-	}
-
-	fmt.Println(entity)
-	return nil
+	}, args...)
 }
