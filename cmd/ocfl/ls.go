@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/birkland/ocfl"
-	"github.com/birkland/ocfl/drivers/file"
+	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/birkland/ocfl/resolv"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
@@ -58,7 +58,7 @@ var ls cli.Command = cli.Command{
 }
 
 func lsAction(args []string) error {
-	fs, err := file.NewDriver(mainOpts.root)
+	fs, err := fs.NewDriver(mainOpts.root)
 	if err != nil {
 		return errors.Wrapf(err, "could not initialize file driver")
 	}

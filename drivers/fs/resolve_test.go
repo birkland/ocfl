@@ -1,10 +1,10 @@
-package file_test
+package fs_test
 
 import (
 	"testing"
 
 	"github.com/birkland/ocfl"
-	"github.com/birkland/ocfl/drivers/file"
+	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/birkland/ocfl/resolv"
 )
 
@@ -29,7 +29,7 @@ func TestWalkResolve(t *testing.T) {
 			[]string{"obj2.txt", "obj2.txt", "obj2.txt", "obj2-copy.txt"}},
 	}
 
-	d, err := file.NewDriver("testdata/ocflroot")
+	d, err := fs.NewDriver("testdata/ocflroot")
 	if err != nil {
 		t.Fatalf("Error setting up driver: %s", err)
 	}

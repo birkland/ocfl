@@ -1,9 +1,9 @@
-package file_test
+package fs_test
 
 import (
 	"testing"
 
-	"github.com/birkland/ocfl/drivers/file"
+	"github.com/birkland/ocfl/drivers/fs"
 )
 
 func TestNewDriver(t *testing.T) {
@@ -21,7 +21,7 @@ func TestNewDriver(t *testing.T) {
 	for _, c := range cases {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
-			_, err := file.NewDriver(c.path)
+			_, err := fs.NewDriver(c.path)
 			if (err != nil) != c.expectErr {
 				t.Errorf("expected error: %t, got error: %t", c.expectErr, (err != nil))
 			}
