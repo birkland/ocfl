@@ -2,7 +2,7 @@
     "id": "urn:/a/d/obj2",
     "type": "https://ocfl.io/1.0/spec/#inventory",
     "digestAlgorithm": "test",
-    "head": "v1",
+    "head": "v3",
     "manifest": {
         "ad00": [
             "v1/content/1"

@@ -14,6 +14,7 @@ import (
 var lsOpts = struct {
 	physical bool
 	ocfltype string
+	head     bool
 }{}
 
 var ls cli.Command = cli.Command{
@@ -38,6 +39,11 @@ var ls cli.Command = cli.Command{
 	ArgsUsage: "[ file | id ] ...",
 	Flags: []cli.Flag{
 		cli.BoolFlag{
+			Name:        "head",
+			Usage:       "Show only the contents of matching objects' head version",
+			Destination: &lsOpts.head,
+		},
+		cli.BoolFlag{
 			Name:        "physical, p",
 			Usage:       "Use physical file paths or URIs instead of IDs",
 			Destination: &lsOpts.physical,
@@ -60,7 +66,7 @@ func lsAction(args []string) error {
 		return errors.Wrapf(err, "could not initialize file driver")
 	}
 
-	return fs.Walk(ocfl.From(lsOpts.ocfltype), func(ref resolv.EntityRef) error {
+	return fs.Walk(resolv.Select{Type: ocfl.From(lsOpts.ocfltype), Head: lsOpts.head}, func(ref resolv.EntityRef) error {
 		coords := ref.Coords()
 
 		if lsOpts.physical {

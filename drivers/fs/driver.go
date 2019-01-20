@@ -40,7 +40,7 @@ func NewDriver(root string) (*Driver, error) {
 	}, nil
 }
 
-func (d *Driver) Walk(desired ocfl.Type, cb func(resolv.EntityRef) error, loc ...string) error {
+func (d *Driver) Walk(desired resolv.Select, cb func(resolv.EntityRef) error, loc ...string) error {
 	startFrom := &resolv.EntityRef{}
 
 	switch len(loc) {
@@ -62,7 +62,7 @@ func (d *Driver) Walk(desired ocfl.Type, cb func(resolv.EntityRef) error, loc ..
 		}
 		if len(refs) > 1 {
 			// Corner case: we dereferenced a physical file content that corresponds to multiple logical files
-			if desired == ocfl.File || desired == ocfl.Any {
+			if desired.Type == ocfl.File || desired.Type == ocfl.Any {
 				for _, ref := range refs {
 					if err := cb(ref); err != nil {
 						return err

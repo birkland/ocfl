@@ -36,7 +36,13 @@ func (e EntityRef) Coords() []string {
 //
 // If no location is given, the scope of the walk is implied to be the entirety of content under an OCFL root.
 type Walker interface {
-	Walk(desired ocfl.Type, cb func(EntityRef) error, loc ...string) error
+	Walk(desired Select, cb func(EntityRef) error, loc ...string) error
+}
+
+// Select indicates desired properties of matching OCFL entities
+type Select struct {
+	Type ocfl.Type // Desired OCFL type
+	Head bool      // True if desired files or versions must be in the head revision
 }
 
 // Driver provides basic OCFL access via some backend
@@ -63,7 +69,7 @@ func Init(cfg Config) (*Cxt, error) {
 	}
 	if cfg.Root != "" {
 		for _, d := range cfg.Drivers {
-			err := d.Walk(ocfl.Root, func(r EntityRef) error {
+			err := d.Walk(Select{Type: ocfl.Root}, func(r EntityRef) error {
 				cxt.root = &r
 				return nil
 			}, cfg.Root)

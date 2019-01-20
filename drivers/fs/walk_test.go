@@ -132,7 +132,7 @@ func TestBadScopes(t *testing.T) {
 			// Ultimately, we're checking to make sure an error is thrown
 			// either when defining the scope, or walking
 			d := &fs.Driver{}
-			err := d.Walk(ocfl.Any, func(resolv.EntityRef) error { return nil }, c)
+			err := d.Walk(resolv.Select{}, func(resolv.EntityRef) error { return nil }, c)
 			if err == nil {
 				t.Error("Did not return an error!")
 			}
@@ -222,7 +222,7 @@ func TestWalkAbort(t *testing.T) {
 
 			var count int
 			d := fs.Driver{}
-			err := d.Walk(ocfl.Any, func(ref resolv.EntityRef) error {
+			err := d.Walk(resolv.Select{}, func(ref resolv.EntityRef) error {
 				if ref.Type == typ {
 					return fmt.Errorf("Threw an error")
 				}
@@ -267,7 +267,7 @@ func root(t *testing.T, name string) resolv.EntityRef {
 }
 
 func doWalk(t *testing.T, typ ocfl.Type, f func(resolv.EntityRef) error, d fs.Driver, from ...string) {
-	err := d.Walk(typ, f, from...)
+	err := d.Walk(resolv.Select{Type: typ}, f, from...)
 	if err != nil {
 		t.Error(err)
 	}

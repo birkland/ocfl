@@ -21,21 +21,16 @@ const (
 type scope struct {
 	root      *resolv.EntityRef
 	startFrom *resolv.EntityRef
-	desired   *resolv.EntityRef
+	desired   resolv.Select
 }
 
 // NewScope defines a scope for ocfl entities underneath the given parent entity
 // Logical choices for a parent include an OCFL root, an ocfl object, or
 // an ocfl version.
-func newScope(under *resolv.EntityRef, t ocfl.Type) (*scope, error) {
+func newScope(under *resolv.EntityRef, desired resolv.Select) (*scope, error) {
 	root, err := findRoot(under, ocfl.Root)
 	if err != nil {
 		return nil, err
-	}
-
-	desired := &resolv.EntityRef{Type: t}
-	if under.Type == t {
-		desired = under
 	}
 
 	return &scope{
@@ -147,6 +142,11 @@ func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 	versions := inv.Versions
 
 	for vID := range versions {
+
+		if s.desired.Head && vID != inv.Head {
+			continue
+		}
+
 		version := resolv.EntityRef{
 			ID:     vID,
 			Type:   ocfl.Version,
@@ -163,6 +163,7 @@ func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 
 		if s.desired.Type <= ocfl.File {
 			files, _ := inv.Files(vID)
+
 			for _, file := range files {
 
 				fileRef := resolv.EntityRef{
