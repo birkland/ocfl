@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,20 +145,6 @@ func (s *scope) walkObject(path string, f func(resolv.EntityRef) error) (err err
 // Walk the versions in an OCFL manifest
 func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, f func(resolv.EntityRef) error) error {
 	versions := inv.Versions
-
-	// A little awkward, but if we want a specific version or file instead of all versions or files...
-	if s.startFrom.Type == ocfl.Version || s.startFrom.Type == ocfl.File {
-
-		scopeVersion, _ := findRoot(s.startFrom, ocfl.Version) // An error here is impossible
-
-		if _, ok := versions[scopeVersion.ID]; !ok {
-			return fmt.Errorf("No version %s exists in %s", scopeVersion.ID, object.ID)
-		}
-
-		versions = map[string]metadata.Version{
-			scopeVersion.ID: {},
-		}
-	}
 
 	for vID := range versions {
 		version := resolv.EntityRef{
