@@ -106,7 +106,6 @@ func (d *Driver) Walk(desired ocfl.Type, cb func(resolv.EntityRef) error, loc ..
 		return err
 	}
 
-	fmt.Println("OK, walking")
 	return scope.walk(cb)
 }
 

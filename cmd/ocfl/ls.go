@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/birkland/ocfl/resolv"
@@ -9,9 +12,8 @@ import (
 )
 
 var lsOpts = struct {
-	physical  bool
-	recursive bool
-	ocfltype  string
+	physical bool
+	ocfltype string
 }{}
 
 var ls cli.Command = cli.Command{
@@ -40,11 +42,6 @@ var ls cli.Command = cli.Command{
 			Usage:       "Use physical file paths or URIs instead of IDs",
 			Destination: &lsOpts.physical,
 		},
-		cli.BoolFlag{
-			Name:        "recursive, r",
-			Usage:       "Recurse over OCFL entities",
-			Destination: &lsOpts.recursive,
-		},
 		cli.StringFlag{
 			Name:        "type, t",
 			Usage:       "Show only {object, version, file} entities",
@@ -63,7 +60,16 @@ func lsAction(args []string) error {
 		return errors.Wrapf(err, "could not initialize file driver")
 	}
 
-	return fs.Walk(ocfl.Any, func(resolv.EntityRef) error {
+	return fs.Walk(ocfl.From(lsOpts.ocfltype), func(ref resolv.EntityRef) error {
+		coords := ref.Coords()
+
+		if lsOpts.physical {
+			coords = append(coords, ref.Addr)
+		}
+
+		if ref.Type != ocfl.Root && ref.Type != ocfl.Intermediate {
+			fmt.Println(strings.Join(coords, "    "))
+		}
 		return nil
 	}, args...)
 }

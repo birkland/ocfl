@@ -54,7 +54,6 @@ func newScope(under *resolv.EntityRef, t ocfl.Type) (*scope, error) {
 // TODO: make this parallel!
 func (s *scope) walk(f func(resolv.EntityRef) error) error {
 	node := s.startFrom
-	fmt.Println("Walking")
 
 	// If we're somewhere underneath an OCFL object, we need to find the path of
 	// the object root in order to get its manifest and walk it.
@@ -163,7 +162,6 @@ func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 	}
 
 	for vID := range versions {
-		fmt.Printf("StartFrom %s, %s, %s\n", s.startFrom.Coords(), s.startFrom.Type, s.startFrom.Addr)
 		version := resolv.EntityRef{
 			ID:     vID,
 			Type:   ocfl.Version,
@@ -204,27 +202,25 @@ func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 	return nil
 }
 
-func (s scope) contains(r resolv.EntityRef) bool {
-	if s.desired.Type == ocfl.Any {
-		return true
-	}
+func (s scope) contains(entity resolv.EntityRef) bool {
+	isUnderStart := s.startFrom.Type == ocfl.Root
 
-	// If we're under the starting point(actually walking),
-	// just compare to desired type
-	if r.Type != s.startFrom.Type {
-		return s.desired.Type == r.Type
-	}
+	// First, back up until we find a matching common parent
+	for e := &entity; e.Parent != nil; e = e.Parent {
+		if e.ID == s.startFrom.ID && e.Type == s.startFrom.Type {
 
-	// Otherwise, if our starting point _is_ the desired type,
-	// then we're not really walking, we're listing that one entity
-	// So compare the desired with the encountered for coordinate equality
-	for a, b := s.desired, &r; a.Parent != nil && b.Parent != nil; a, b = a.Parent, b.Parent {
-		if a.ID != b.ID {
-			return false
+			// Then continue backwards comparing equality of coordinates.
+			for a, b := s.startFrom, e; a.Parent != nil && b.Parent != nil; a, b = a.Parent, b.Parent {
+				if a.ID != b.ID {
+					return false
+				}
+			}
+
+			isUnderStart = true
 		}
 	}
 
-	return r.Type <= s.desired.Type
+	return isUnderStart && (s.desired.Type == entity.Type || s.desired.Type == ocfl.Any)
 }
 
 type skip struct {
