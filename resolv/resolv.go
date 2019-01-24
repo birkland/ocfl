@@ -2,6 +2,7 @@ package resolv
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/birkland/ocfl"
 )
@@ -23,6 +24,32 @@ func (e EntityRef) Coords() []string {
 	}
 
 	return coords
+}
+
+// Options for establishing a read/write session on an OCFL object.
+type Options struct {
+	Create           bool     // If true, this will create a new object if one does not exist.
+	DigestAlgorithms []string // Desired fixity digest algorithms when writing new files.
+	User             struct {
+		Name    string
+		Address string
+	}
+}
+
+// Session allows reading or writing to the an OCFL object. Each session is bound to a single
+// OCFL object version - either a pre-existing version, or an uncommitted new version.
+type Session interface {
+	Put(lpath string, r io.Reader) error // Put file content at the given logical path
+	// TODO: Delete(lpath string) error
+	// TODO: Move(src, dest string) error
+	// TODO: Read(lpath string) (io.Reader, error)
+	// TODO: Commit() error
+	// TODO: Close() error
+}
+
+// Opener opens an OCFL object session, potentially allowing reading and writing to it.
+type Opener interface {
+	Open(id string, opts Options) Session // Open an OCFL object
 }
 
 // Walker crawls through a bounded scope of OCFL entities "underneath" a start
@@ -48,6 +75,7 @@ type Select struct {
 // Driver provides basic OCFL access via some backend
 type Driver interface {
 	Walker
+	Opener
 }
 
 type Config struct {
