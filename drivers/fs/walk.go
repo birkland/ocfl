@@ -7,7 +7,6 @@ import (
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/metadata"
-	"github.com/birkland/ocfl/resolv"
 	"github.com/karrick/godirwalk"
 	"github.com/pkg/errors"
 )
@@ -19,15 +18,15 @@ const (
 
 // Scope defines a bounded set of OCFL entries (e.g. everything under a given root)
 type scope struct {
-	root      *resolv.EntityRef
-	startFrom *resolv.EntityRef
-	desired   resolv.Select
+	root      *ocfl.EntityRef
+	startFrom *ocfl.EntityRef
+	desired   ocfl.Select
 }
 
 // NewScope defines a scope for ocfl entities underneath the given parent entity
 // Logical choices for a parent include an OCFL root, an ocfl object, or
 // an ocfl version.
-func newScope(under *resolv.EntityRef, desired resolv.Select) (*scope, error) {
+func newScope(under *ocfl.EntityRef, desired ocfl.Select) (*scope, error) {
 	root, err := findRoot(under, ocfl.Root)
 	if err != nil {
 		return nil, err
@@ -46,7 +45,7 @@ func newScope(under *resolv.EntityRef, desired resolv.Select) (*scope, error) {
 // (b) walk the entities in an object (versions, files) using data from the manifest rather than the filesystem
 //
 // TODO: make this parallel!
-func (s *scope) walk(f func(resolv.EntityRef) error) error {
+func (s *scope) walk(f func(ocfl.EntityRef) error) error {
 	node := s.startFrom
 
 	// If we're somewhere underneath an OCFL object, we need to find the path of
@@ -88,8 +87,8 @@ func (s *scope) walk(f func(resolv.EntityRef) error) error {
 		}
 
 		// Skip root, process intermdiate and continue
-		if ospath != s.root.Addr && s.contains(resolv.EntityRef{Type: ocfl.Intermediate}) {
-			err := f(resolv.EntityRef{
+		if ospath != s.root.Addr && s.contains(ocfl.EntityRef{Type: ocfl.Intermediate}) {
+			err := f(ocfl.EntityRef{
 				ID:     strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(ospath, s.root.Addr)), "/"),
 				Addr:   ospath,
 				Type:   ocfl.Intermediate,
@@ -109,14 +108,14 @@ func (s *scope) walk(f func(resolv.EntityRef) error) error {
 }
 
 // Walk the OCFL manifest
-func (s *scope) walkObject(path string, f func(resolv.EntityRef) error) (err error) {
+func (s *scope) walkObject(path string, f func(ocfl.EntityRef) error) (err error) {
 
 	inv, err := readMetadata(path)
 	if err != nil {
 		return err
 	}
 
-	object := resolv.EntityRef{
+	object := ocfl.EntityRef{
 		ID:     inv.ID,
 		Type:   ocfl.Object,
 		Parent: s.root,
@@ -138,7 +137,7 @@ func (s *scope) walkObject(path string, f func(resolv.EntityRef) error) (err err
 }
 
 // Walk the versions in an OCFL manifest
-func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, f func(resolv.EntityRef) error) error {
+func (s *scope) walkVersions(inv *metadata.Inventory, object *ocfl.EntityRef, f func(ocfl.EntityRef) error) error {
 	versions := inv.Versions
 
 	for vID := range versions {
@@ -147,7 +146,7 @@ func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 			continue
 		}
 
-		version := resolv.EntityRef{
+		version := ocfl.EntityRef{
 			ID:     vID,
 			Type:   ocfl.Version,
 			Parent: object,
@@ -166,7 +165,7 @@ func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 
 			for _, file := range files {
 
-				fileRef := resolv.EntityRef{
+				fileRef := ocfl.EntityRef{
 					ID:     file.LogicalPath,
 					Type:   ocfl.File,
 					Parent: &version,
@@ -188,7 +187,7 @@ func (s *scope) walkVersions(inv *metadata.Inventory, object *resolv.EntityRef, 
 	return nil
 }
 
-func (s scope) contains(entity resolv.EntityRef) bool {
+func (s scope) contains(entity ocfl.EntityRef) bool {
 	isUnderStart := s.startFrom.Type == ocfl.Root
 
 	// First, back up until we find a matching common parent

@@ -7,13 +7,12 @@ import (
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/metadata"
-	"github.com/birkland/ocfl/resolv"
 	"github.com/pkg/errors"
 )
 
 // Driver represents the filesystem driver for OCFL
 type Driver struct {
-	root *resolv.EntityRef
+	root *ocfl.EntityRef
 }
 
 // NewDriver initializes a new filesystem OCFL driver with
@@ -33,15 +32,15 @@ func NewDriver(root string) (*Driver, error) {
 	}
 
 	return &Driver{
-		root: &resolv.EntityRef{
+		root: &ocfl.EntityRef{
 			Type: ocfl.Root,
 			Addr: root,
 		},
 	}, nil
 }
 
-func (d *Driver) Walk(desired resolv.Select, cb func(resolv.EntityRef) error, loc ...string) error {
-	startFrom := &resolv.EntityRef{}
+func (d *Driver) Walk(desired ocfl.Select, cb func(ocfl.EntityRef) error, loc ...string) error {
+	startFrom := &ocfl.EntityRef{}
 
 	switch len(loc) {
 	case 0: // No loc provided, assume root
@@ -80,10 +79,10 @@ func (d *Driver) Walk(desired resolv.Select, cb func(resolv.EntityRef) error, lo
 			return fmt.Errorf("cannot locate '%s': please define an OCFL root", loc)
 		}
 
-		version := resolv.EntityRef{
+		version := ocfl.EntityRef{
 			Type: ocfl.Version,
 			ID:   loc[1],
-			Parent: &resolv.EntityRef{
+			Parent: &ocfl.EntityRef{
 				Type:   ocfl.Object,
 				ID:     loc[0],
 				Parent: d.root,
@@ -93,7 +92,7 @@ func (d *Driver) Walk(desired resolv.Select, cb func(resolv.EntityRef) error, lo
 		startFrom = &version
 
 		if len(loc) > 2 {
-			startFrom = &resolv.EntityRef{
+			startFrom = &ocfl.EntityRef{
 				Type:   ocfl.File,
 				ID:     loc[2],
 				Parent: &version,

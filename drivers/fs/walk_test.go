@@ -8,7 +8,6 @@ import (
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/fs"
-	"github.com/birkland/ocfl/resolv"
 	"github.com/go-test/deep"
 )
 
@@ -35,9 +34,9 @@ func TestWalkScopeTypes(t *testing.T) {
 	}
 
 	for typ, expected := range cases {
-		var visited []resolv.EntityRef
+		var visited []ocfl.EntityRef
 
-		doWalk(t, typ, func(ref resolv.EntityRef) error {
+		doWalk(t, typ, func(ref ocfl.EntityRef) error {
 			visited = append(visited, ref)
 			return nil
 		}, fs.Driver{}, ocflRoot.Addr)
@@ -54,26 +53,26 @@ func TestWalkScopeStart(t *testing.T) {
 
 	ocflRoot := root(t, testroot)
 
-	intermediate := resolv.EntityRef{
+	intermediate := ocfl.EntityRef{
 		Type:   ocfl.Intermediate,
 		Parent: &ocflRoot,
 		Addr:   assertExists(t, filepath.Join(ocflRoot.Addr, "a/d")),
 	}
 
-	object := resolv.EntityRef{
+	object := ocfl.EntityRef{
 		Type:   ocfl.Object,
 		Parent: &intermediate,
 		Addr:   assertExists(t, filepath.Join(intermediate.Addr, "obj2")),
 	}
 
-	version := resolv.EntityRef{
+	version := ocfl.EntityRef{
 		Type:   ocfl.Version,
 		Parent: &object,
 		Addr:   assertExists(t, filepath.Join(object.Addr, "v3")),
 		ID:     "v3",
 	}
 
-	file := resolv.EntityRef{
+	file := ocfl.EntityRef{
 		Type:   ocfl.File,
 		Parent: &version,
 		Addr:   assertExists(t, filepath.Join(version.Addr, "content/2")),
@@ -81,7 +80,7 @@ func TestWalkScopeStart(t *testing.T) {
 	}
 
 	cases := []struct {
-		start    *resolv.EntityRef
+		start    *ocfl.EntityRef
 		lookFor  ocfl.Type
 		expected int
 	}{
@@ -94,9 +93,9 @@ func TestWalkScopeStart(t *testing.T) {
 	for _, c := range cases {
 		c := c
 		t.Run(c.start.Type.String(), func(t *testing.T) {
-			var visited []resolv.EntityRef
+			var visited []ocfl.EntityRef
 
-			doWalk(t, c.lookFor, func(ref resolv.EntityRef) error {
+			doWalk(t, c.lookFor, func(ref ocfl.EntityRef) error {
 				visited = append(visited, ref)
 				return nil
 			}, fs.Driver{}, c.start.Addr)
@@ -132,7 +131,7 @@ func TestBadScopes(t *testing.T) {
 			// Ultimately, we're checking to make sure an error is thrown
 			// either when defining the scope, or walking
 			d := &fs.Driver{}
-			err := d.Walk(resolv.Select{}, func(resolv.EntityRef) error { return nil }, c)
+			err := d.Walk(ocfl.Select{}, func(ocfl.EntityRef) error { return nil }, c)
 			if err == nil {
 				t.Error("Did not return an error!")
 			}
@@ -145,28 +144,28 @@ func TestBadScopes(t *testing.T) {
 func TestWalkRefs(t *testing.T) {
 	ocflRoot := root(t, testroot)
 
-	intermediate := resolv.EntityRef{
+	intermediate := ocfl.EntityRef{
 		ID:     "a/b",
 		Parent: &ocflRoot,
 		Type:   ocfl.Intermediate,
 		Addr:   filepath.Join(ocflRoot.Addr, "a/b"),
 	}
 
-	object := resolv.EntityRef{
+	object := ocfl.EntityRef{
 		ID:     "urn:/a/b/c/obj1",
 		Parent: &ocflRoot,
 		Type:   ocfl.Object,
 		Addr:   filepath.Join(ocflRoot.Addr, "a/b/c/obj1"),
 	}
 
-	version := resolv.EntityRef{
+	version := ocfl.EntityRef{
 		ID:     "v2",
 		Parent: &object,
 		Type:   ocfl.Version,
 		Addr:   filepath.Join(object.Addr, "v2"),
 	}
 
-	file := resolv.EntityRef{
+	file := ocfl.EntityRef{
 		ID:     "obj1.txt",
 		Parent: &version,
 		Type:   ocfl.File,
@@ -175,11 +174,11 @@ func TestWalkRefs(t *testing.T) {
 
 	// We're not doing an exhaustive search.  Just check that the expected sample
 	// for each type is found in the results.
-	cases := []resolv.EntityRef{ocflRoot, intermediate, object, version, file}
+	cases := []ocfl.EntityRef{ocflRoot, intermediate, object, version, file}
 
-	var visited []resolv.EntityRef
+	var visited []ocfl.EntityRef
 
-	doWalk(t, ocfl.Any, func(ref resolv.EntityRef) error {
+	doWalk(t, ocfl.Any, func(ref ocfl.EntityRef) error {
 		visited = append(visited, ref)
 		return nil
 	}, fs.Driver{}, ocflRoot.Addr)
@@ -222,7 +221,7 @@ func TestWalkAbort(t *testing.T) {
 
 			var count int
 			d := fs.Driver{}
-			err := d.Walk(resolv.Select{}, func(ref resolv.EntityRef) error {
+			err := d.Walk(ocfl.Select{}, func(ref ocfl.EntityRef) error {
 				if ref.Type == typ {
 					return fmt.Errorf("Threw an error")
 				}
@@ -253,21 +252,21 @@ func assertExists(t *testing.T, path string) string {
 	return path
 }
 
-func root(t *testing.T, name string) resolv.EntityRef {
+func root(t *testing.T, name string) ocfl.EntityRef {
 	rootDir, err := filepath.Abs(filepath.Join("testdata", name))
 	if err != nil {
 		t.Errorf("Error opening test data root at %s: %s", filepath.Join("testdata", name), err)
 	}
 
-	return resolv.EntityRef{
+	return ocfl.EntityRef{
 		ID:   "",
 		Type: ocfl.Root,
 		Addr: rootDir,
 	}
 }
 
-func doWalk(t *testing.T, typ ocfl.Type, f func(resolv.EntityRef) error, d fs.Driver, from ...string) {
-	err := d.Walk(resolv.Select{Type: typ}, f, from...)
+func doWalk(t *testing.T, typ ocfl.Type, f func(ocfl.EntityRef) error, d fs.Driver, from ...string) {
+	err := d.Walk(ocfl.Select{Type: typ}, f, from...)
 	if err != nil {
 		t.Error(err)
 	}

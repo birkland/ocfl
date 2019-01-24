@@ -6,7 +6,6 @@ import (
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/fs"
-	"github.com/birkland/ocfl/resolv"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -66,7 +65,7 @@ func lsAction(args []string) error {
 		return errors.Wrapf(err, "could not initialize file driver")
 	}
 
-	return fs.Walk(resolv.Select{Type: ocfl.From(lsOpts.ocfltype), Head: lsOpts.head}, func(ref resolv.EntityRef) error {
+	return fs.Walk(ocfl.Select{Type: ocfl.ParseType(lsOpts.ocfltype), Head: lsOpts.head}, func(ref ocfl.EntityRef) error {
 		coords := ref.Coords()
 
 		if lsOpts.physical {

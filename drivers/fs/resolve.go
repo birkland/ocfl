@@ -8,7 +8,6 @@ import (
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/metadata"
-	"github.com/birkland/ocfl/resolv"
 	"github.com/pkg/errors"
 )
 
@@ -19,8 +18,8 @@ const ocflRoot = "0=ocfl_1.0"
 // Filesystem paths that point to individual files can actually alias to several
 // logical files withan an OCFL object version, hence the need to return the result
 // as an array.
-func resolve(loc string) (ref []resolv.EntityRef, err error) {
-	var refs []resolv.EntityRef
+func resolve(loc string) (ref []ocfl.EntityRef, err error) {
+	var refs []ocfl.EntityRef
 	var inv *metadata.Inventory
 
 	addr, err := filepath.Abs(loc)
@@ -45,13 +44,13 @@ func resolve(loc string) (ref []resolv.EntityRef, err error) {
 
 	// If it's a root, we already found it!
 	if rootRef.Addr == addr {
-		return []resolv.EntityRef{*rootRef}, nil
+		return []ocfl.EntityRef{*rootRef}, nil
 	}
 
 	// If it's not a root, but its root is the OCFL root, then
 	// it's an intermediate node!
 	if rootRef.Type == ocfl.Root {
-		return []resolv.EntityRef{{
+		return []ocfl.EntityRef{{
 			ID:     strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(addr, rootRef.Addr)), "/"),
 			Parent: rootRef,
 			Type:   ocfl.Intermediate,
@@ -63,7 +62,7 @@ func resolve(loc string) (ref []resolv.EntityRef, err error) {
 	versionID := strings.Split(
 		filepath.ToSlash(strings.TrimPrefix(addr, rootRef.Addr+string(filepath.Separator))), "/")[0]
 
-	version := resolv.EntityRef{
+	version := ocfl.EntityRef{
 		ID:     versionID,
 		Parent: rootRef,
 		Type:   ocfl.Version,
@@ -72,7 +71,7 @@ func resolve(loc string) (ref []resolv.EntityRef, err error) {
 
 	// If we had the address of a version directory, then that's it
 	if version.Addr == addr {
-		return []resolv.EntityRef{version}, nil
+		return []ocfl.EntityRef{version}, nil
 	}
 
 	// Otherwise, we have an individual file.  This is the difficult case,
@@ -80,7 +79,7 @@ func resolve(loc string) (ref []resolv.EntityRef, err error) {
 
 	digest := findDigest(inv, strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(addr, rootRef.Addr)), "/"))
 	for v, vmd := range inv.Versions {
-		inVersion := resolv.EntityRef{
+		inVersion := ocfl.EntityRef{
 			ID:     v,
 			Parent: rootRef,
 			Type:   ocfl.Version,
@@ -90,7 +89,7 @@ func resolve(loc string) (ref []resolv.EntityRef, err error) {
 		for d, paths := range vmd.State {
 			if d == digest {
 				for _, path := range paths {
-					refs = append(refs, resolv.EntityRef{
+					refs = append(refs, ocfl.EntityRef{
 						ID:     path,
 						Parent: &inVersion,
 						Type:   ocfl.File,
@@ -116,7 +115,7 @@ func findDigest(inv *metadata.Inventory, path string) metadata.Digest {
 	return ""
 }
 
-func findRoot(ref *resolv.EntityRef, t ocfl.Type) (*resolv.EntityRef, error) {
+func findRoot(ref *ocfl.EntityRef, t ocfl.Type) (*ocfl.EntityRef, error) {
 
 	if ref == nil {
 		return nil, fmt.Errorf("cannot find root, entity ref is null")
@@ -138,7 +137,7 @@ func findRoot(ref *resolv.EntityRef, t ocfl.Type) (*resolv.EntityRef, error) {
 }
 
 // Crawl up a directory hierarchy until we reach an OCFL root.
-func crawlForRoot(loc string, t ocfl.Type) (*resolv.EntityRef, error) {
+func crawlForRoot(loc string, t ocfl.Type) (*ocfl.EntityRef, error) {
 
 	addr, err := filepath.Abs(loc)
 	if err != nil {
@@ -160,7 +159,7 @@ func crawlForRoot(loc string, t ocfl.Type) (*resolv.EntityRef, error) {
 		return crawlForRoot(parent, t)
 	}
 
-	return &resolv.EntityRef{
+	return &ocfl.EntityRef{
 		Type: typ,
 		Addr: parent,
 	}, nil
