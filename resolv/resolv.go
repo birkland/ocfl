@@ -18,7 +18,7 @@ type EntityRef struct {
 // the form {objectID, versionID, logicalFilePath}
 func (e EntityRef) Coords() []string {
 	var coords []string
-	for ref := &e; ref.Parent != nil; ref = ref.Parent {
+	for ref := &e; ref != nil && ref.Type != ocfl.Root; ref = ref.Parent {
 		coords = append([]string{ref.ID}, coords...)
 	}
 

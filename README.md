@@ -1,93 +1,66 @@
 # OCFL
 
-Experimental OCFL client and library for interacting with OCFL content from an operational perspective.
+Experimental OCFL client and library for interacting with OCFL content from an operational perspective.  
 
-Explores the kinds of questions a sysadmin or content curator might want to ask of the content in OCFL, and the tools and techniques that
-are necessary to support questions such as:
+## CLI client
 
-* How many objects are in an OCFL root?
-* Given an object `ark:/1234/5678`, what are the files in version 3?
-* What are the file paths for all jpeg files in current revisions of objects in OCFL?
+### `ocfl help [sub-command]`
 
-Furthermore, what sort of workflows are appropriate for managing content in OCFL (e.g. adding new objects, or updating them)?
-Looking at the spec, OCFL objects are rather like `git` repositories from a technical sense.  The filesystem holds blobs of content (opaque in git,
-transparent but tricky with forward deltas in OCFL), and a data structure (the inventory in OCFL, or tree objects in git)
-that points to these blobs and assigns logical names to them to create a virtual filesystem representation.
+Prints a list of supported sub-commands, or helpful info for a given subcommand, e.g.
 
-In git, `checkout` reifies this virtual filesystem to a concrete working directory, `add` allows one to select updated or deleted content
-for inclusion in the next revision, and `commit` locks it in by creating a new immutable tree structure that points to the resulting state.
-Does OCFL beg for a similar workflow?  
+    ocfl help ls
 
-## Command line client
+### `ocfl ls`
 
-Right now, `help` is implemented, and `list` is next:
+Lists the content of the given OCFL entity given a physical or logical address.  A "logical address" is a space-separated list of values that include an OCFL object ID, optionally a version ID, and optionally a file path.
 
-    $ ocfl help
+For example, if you want to list the object IDs of every object in an OCFL root,
+you may do:
 
-    NAME:
-       ocfl - OCFL commandline utilities
+    $ ocfl ls /path/to/ocfl/root -t object
+    urn:/a/b/c/obj1
+    urn:/a/d/obj2
+    urn:/a/d/obj3
+    urn:/obj4
 
-    USAGE:
-       ocfl.exe [global options] command [command options] [arguments...]
+.. or to list all files in head revisions of OCFL objects:
 
-    VERSION:
-       0.0.0
+    $ ocfl ls /path/to/ocfl/root -t file --head
+    urn:/a/b/c/obj1    v3    obj1.txt
+    urn:/a/b/c/obj1    v3    obj1-new.txt
+    urn:/a/d/obj2    v3    obj2-new.txt
+    urn:/a/d/obj2    v3    obj2.txt
+    urn:/a/d/obj3    v3    obj3.txt
+    urn:/a/d/obj3    v3    obj3-new.txt
+    urn:/obj4    v2    obj1.txt
+    urn:/obj4    v2    obj2.txt
 
-    COMMANDS:
-         ls       List ocfl entities (roots, ojects, versions, files)
-         help, h  Shows a list of commands or help for one command
+.. and to additionally show physical file paths
 
-    GLOBAL OPTIONS:
-       --root value, -r value  OCFL root (uri or file) [$OCFL_ROOT]
-       --user value, -u value  OCFL user [$OCFL_USER]
-       --help, -h              show help
-       --version, -v           print the version
+    ocfl ls /path/to/ocfl/root -t file --head -p
+    urn:/a/b/c/obj1    v3    obj1.txt    /path/to/ocfl/root/a/b/c/obj1/v1/content/1
+    urn:/a/b/c/obj1    v3    obj1-new.txt    /path/to/ocfl/root/a/b/c/obj1/v3/content/2
+    urn:/a/d/obj2    v3    obj2.txt    /path/to/ocfl/root/a/d/obj2/v1/content/1
+    urn:/a/d/obj2    v3    obj2-new.txt    /path/to/ocfl/root/a/d/obj2/v3/content/2
+    urn:/a/d/obj3    v3    obj3.txt    /path/to/ocfl/root/a/d/obj3/v1/content/1
+    urn:/a/d/obj3    v3    obj3-new.txt    /path/to/ocfl/root/a/d/obj3/v3/content/2
+    urn:/obj4    v3    obj1.txt    /path/to/ocfl/root/obj4/v1/content/1
+    urn:/obj4    v3    obj2.txt    /path/to/ocfl/root/obj4/v3/content/2
 
-Likewise, for list:
+It's possible for a single physical file to produce multiple results if it is referenced in several versions, or deduped (multiple logical files in a version point to a single physical file)
 
-    $ ocfl help ls
+    $ ocfl ls ./a/d/obj3/v1/content/1
+    urn:/a/d/obj3    v1    obj3.txt
+    urn:/a/d/obj3    v1    obj3-copy.txt
+    urn:/a/d/obj3    v2    obj3.txt
+    urn:/a/d/obj3    v3    obj3.txt
 
-    NAME:
-       ocfl ls - List ocfl entities (roots, ojects, versions, files)
+Using logical identifiers as arguments is OK too, just be sure to define your root, either by providing a `-root` argument, or an environment variable `OCFL_ROOT`
 
-    USAGE:
-       ocfl ls [command options] [ file | id ] ...
-
-    DESCRIPTION:
-       Given an identifier of an OCFL entity, list its contents.
-
-      Identifiers may be physical file paths, URIs, logical names, etc.
-      For addressing OCFL entities in context (i.e. a specific file
-      in a particular version of an OCFL object), a hierarchy of
-      identifiers can be provided, separated by spaces.
-
-      For example, the following would list files in version v3 of
-      an ocfl object named ark:1234/5678
-
-        ocfl ls ark:/1234/5678 v3
-
-      Listing can be recursive as well (e.g. listing all versions
-      of an OCFL object, as well as the files in each version),
-      and/or restricted by type (i.e. list all logical files under
-      an ocfl root)
-
-    OPTIONS:
-       --physical, -p          Use physical file paths or URIs instead of IDs
-       --recursive, -r         Recurse over OCFL entities
-       --type value, -t value  Show only {object, version, file} entities
-
-Planned cli commands includes:
-
-* `ocfl index` - Index OCFL metadata to a database
-* `ocfl serve` - Serve the contents of an OCFL root as http
-* `ocfl gc` - remove unreferenced files from an OCFL object's version tree
-* `ocfl fsck` - Check for anomalies (and fix if possible?)
-
-Additional functionality depends on exploring.  Maybe:
-
-* `ocfl cat` - concatenate the contents of an OCFL file?
-* `ocfl cp`, `ocfl mv`, `ocfl rm` - copy/rename/delete stuff in a new object version?
-* `ocfl commit` - Perhaps `cp`, `mv`, and `rm` mutate an unpublished version (e.g. v2, when the inventory only describes v1).  Commit v2 to `inventory.json` so it's live?  `ocfl gc` to abandon it instead?
+    $ export OCFL_ROOT=/path/to/ocfl/root
+    $ ocfl ls -p -t file  urn:/obj4 v3
+    urn:/obj4    v3    obj1.txt    /path/to/ocfl/root/obj4/v1/content/1
+    urn:/obj4    v3    obj2.txt    /path/to/ocfl/root/obj4/v3/content/2
 
 ## Drivers
 
