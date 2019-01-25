@@ -21,7 +21,10 @@ func TestResolveLogical(t *testing.T) {
 		{"object", []string{"urn:/a/d/obj2"}, ocfl.Select{Type: ocfl.Object}, []string{"urn:/a/d/obj2"}},
 		{"versionsOfObject", []string{"urn:/a/d/obj2"}, ocfl.Select{Type: ocfl.Version}, []string{"v1", "v2", "v3"}},
 		{"version", []string{"urn:/a/d/obj2", "v1"}, ocfl.Select{Type: ocfl.Version}, []string{"v1"}},
-		{"filesInVersion", []string{"urn:/a/d/obj2", "v3"}, ocfl.Select{Type: ocfl.File}, []string{"obj2.txt", "obj2-new.txt"}},
+		{"filesInVersion",
+			[]string{"urn:/a/d/obj2", "v3"},
+			ocfl.Select{Type: ocfl.File},
+			[]string{"obj2.txt", "obj2-new.txt"}},
 		{"file", []string{"urn:/a/d/obj2", "v3", "obj2-new.txt"}, ocfl.Select{Type: ocfl.File}, []string{"obj2-new.txt"}},
 	}
 
@@ -81,7 +84,7 @@ func TestResolveHead(t *testing.T) {
 	}
 }
 
-func runResolveCase(t *testing.T, c resolveCase, d ocfl.Driver) {
+func runResolveCase(t *testing.T, c resolveCase, d ocfl.Walker) {
 	t.Run(c.name, func(t *testing.T) {
 		var results []ocfl.EntityRef
 		err := d.Walk(c.selector, func(ref ocfl.EntityRef) error {
