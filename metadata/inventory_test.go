@@ -187,7 +187,7 @@ func foundFile(file metadata.File, files []metadata.File) bool {
 }
 
 // If there are multiple choices for physical path for a given file in a given version, pick
-// the one that most closly matches the desired version.
+// the one that most closely matches the desired version.
 func TestInventoryFilePhysicalPaths(t *testing.T) {
 
 	const (
@@ -198,7 +198,7 @@ func TestInventoryFilePhysicalPaths(t *testing.T) {
 
 	inv := &metadata.Inventory{
 		Manifest: metadata.Manifest{
-			"a": {}, // Each test cass will substitute different values here
+			"a": {}, // Each test case will substitute different values here
 		},
 		Versions: map[string]metadata.Version{
 			"v1": {

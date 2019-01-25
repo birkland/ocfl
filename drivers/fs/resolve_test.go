@@ -14,7 +14,7 @@ type resolveCase struct {
 	expectedIDs []string
 }
 
-// Tests the resolution of filepaths via walk
+// Tests the resolution of file paths via walk
 func TestResolveLogical(t *testing.T) {
 	cases := []resolveCase{
 		{"defaultRoot", []string{}, ocfl.Select{Type: ocfl.Root}, []string{""}},

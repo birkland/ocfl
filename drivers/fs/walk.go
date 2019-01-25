@@ -73,7 +73,7 @@ func (s *scope) walk(f func(ocfl.EntityRef) error) error {
 	// At this point, node points to an ocfl root, intermediate node, or an ocfl object root
 	err := fsWalk(startPath, func(ospath string, e *godirwalk.Dirent) (bool, error) {
 
-		// We dont' care about regular files
+		// We don't' care about regular files
 		if !e.IsDir() && !e.IsSymlink() {
 			return dontGoDeeper, nil
 		}
@@ -86,7 +86,7 @@ func (s *scope) walk(f func(ocfl.EntityRef) error) error {
 			return dontGoDeeper, err
 		}
 
-		// Skip root, process intermdiate and continue
+		// Skip root, process intermediate and continue
 		if ospath != s.root.Addr && s.contains(ocfl.EntityRef{Type: ocfl.Intermediate}) {
 			err := f(ocfl.EntityRef{
 				ID:     strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(ospath, s.root.Addr)), "/"),
@@ -217,7 +217,7 @@ func (skip) Error() string {
 }
 
 // Callback to be invoked each time a fs entry is encountered.
-// Returns a boolean indicating whether the current fs entry should be a
+// Returns a Boolean indicating whether the current fs entry should be a
 // considered a terminal (leaf) node.  If true, any children will not be
 // walked.  Any error will terminate a walk entirely.
 type fsCallback func(ospath string, e *godirwalk.Dirent) (terminal bool, err error)

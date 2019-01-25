@@ -24,7 +24,7 @@ const (
 	HEAD = ""
 )
 
-// ParseType creates an OCFL type constant from the given sttring,
+// ParseType creates an OCFL type constant from the given string,
 // e.g. ocfl.From("Object") == ocfl.Object
 func ParseType(name string) Type {
 	if len(name) > 0 {
@@ -85,13 +85,20 @@ func (e EntityRef) Coords() []string {
 }
 
 // Options for establishing a read/write session on an OCFL object.
+//
+// A given session is scoped to a single version of an OCFL object.
+// That version may be one that already exists, or a uncommitted version.
+// Constants ocfl.NEW and ocfl.HEAD are intended to be used with the
+// Version field in order to specify the head version regardless of name,
+// or an auto-named new version.  Otherwise, provide the name of an existing
+// version to access its contents.
 type Options struct {
 	Create           bool     // If true, this will create a new object if one does not exist.
 	DigestAlgorithms []string // Desired fixity digest algorithms when writing new files.
-	Version          string   // Desired version, defailt ocfl.HEAD.  Uee ocfl.NEW for a new, uncommitted version
+	Version          string   // Desired version, default (zero value) ocfl.HEAD
 }
 
-// CommitInfo defines data to be included when committing an OCFL version
+// CommitInfo defines informative text to be included when committing an OCFL version
 type CommitInfo struct {
 	Name    string // User name
 	Address string // Some sort of identifier - e-mail, URL, etc
@@ -99,8 +106,12 @@ type CommitInfo struct {
 	// TODO: maybe a date here?
 }
 
-// Session allows reading or writing to the an OCFL object. Each session is bound to a single
-// OCFL object version - either a pre-existing version, or an uncommitted new version.
+// Session allows reading or writing to the an OCFL object.
+//
+// Each session is bound to a single OCFL object version; either a pre-existing version,
+// or an uncommitted new version.  New versions contain the content of the previous
+// version as a starting point.  Drivers may or may not allow writes/commits
+// to existing versions.
 type Session interface {
 	Put(lpath string, r io.Reader) error // Put file content at the given logical path
 	// TODO: Delete(lpath string) error
@@ -119,7 +130,7 @@ type Opener interface {
 // location.  Given a location and a desired type, Walker will invoke the provided
 // callback any time an entity of the desired type is encountered.
 //
-// The walk locaiton may either be a single physical address (such as a file path or URI),
+// The walk location may either be a single physical address (such as a file path or URI),
 // or it may be a sequence of logical OCFL identifiers, such as {objectID, versionID, logicalFilePath}
 // When providing logical identifiers, object IDs may be provided on their own, version IDs must be preceded
 // by an object ID, and logical file paths must be preceded by the version ID.

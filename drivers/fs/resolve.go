@@ -16,7 +16,7 @@ const ocflRoot = "0=ocfl_1.0"
 
 // resolve takes a filesystem path and maps it to logical OCFL entities.
 // Filesystem paths that point to individual files can actually alias to several
-// logical files withan an OCFL object version, hence the need to return the result
+// logical files within an OCFL object version, hence the need to return the result
 // as an array.
 func resolve(loc string) (ref []ocfl.EntityRef, err error) {
 	var refs []ocfl.EntityRef

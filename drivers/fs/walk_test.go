@@ -48,7 +48,7 @@ func TestWalkScopeTypes(t *testing.T) {
 	}
 }
 
-// Vary the start node (root, inermediate, version, etc) in the walk scope
+// Vary the start node (root, intermediate, version, etc) in the walk scope
 func TestWalkScopeStart(t *testing.T) {
 
 	ocflRoot := root(t, testroot)

@@ -13,7 +13,7 @@ import (
 
 const InventoryFile = "inventory.json"
 
-// Inventory defines the contents of an OCFL objet, as defined by inventory.json in the OCFL spec
+// Inventory defines the contents of an OCFL object, as defined by inventory.json in the OCFL spec
 type Inventory struct {
 	ID              string             `json:"id"`
 	Type            string             `json:"type"`
@@ -44,7 +44,7 @@ type Version struct {
 	State   Manifest  `json:"state"`
 }
 
-// User is an OCFL user, as sefined by inventory.json
+// User is an OCFL user, as defined by inventory.json
 type User struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
