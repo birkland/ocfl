@@ -47,7 +47,7 @@ func (d *Driver) Walk(desired ocfl.Select, cb func(ocfl.EntityRef) error, loc ..
 	case 0: // No location provided, assume root
 		startFrom = d.root
 	case 1: // Single value.  Try resolving first, then presume it's an OCFL object if that fails
-		refs, err := resolve(loc[0])
+		refs, _, err := resolve(loc[0])
 		if err != nil || len(refs) == 0 {
 
 			if d.root == nil {

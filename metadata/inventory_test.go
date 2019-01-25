@@ -257,3 +257,54 @@ func TestInventoryFileErrorsBadVersion(t *testing.T) {
 		t.Error("Bad version name should have thrown an error")
 	}
 }
+
+func TestVersionValidity(t *testing.T) {
+	cases := map[metadata.VersionID]bool{
+		"":        false,
+		"v":       false,
+		"v0":      false,
+		"v0000":   false,
+		"v1":      true,
+		"v0001":   true,
+		"v01d":    false,
+		"rhubarb": false,
+	}
+
+	for v, e := range cases {
+		v := v
+		expected := e
+		t.Run(string(v), func(t *testing.T) {
+			if v.Valid() != expected {
+				t.Errorf("%s validity was %t, when expected %t", v, v.Valid(), expected)
+			}
+		})
+	}
+}
+
+func TestVersionIncrement(t *testing.T) {
+	cases := map[metadata.VersionID]struct {
+		version metadata.VersionID
+		error   bool
+	}{
+		"v":     {"", true},
+		"v1":    {"v2", false},
+		"v9":    {"v10", false},
+		"v01":   {"v02", false},
+		"v0999": {"v1000", false},
+	}
+
+	for before, expected := range cases {
+		before := before
+		expected := expected
+		t.Run(string(before), func(t *testing.T) {
+			after, err := before.Increment()
+			if (err != nil) != expected.error {
+				t.Error("Bad error status")
+			}
+
+			if after != expected.version {
+				t.Errorf("Increment of %s resulted in %s instead of %s", before, after, expected.version)
+			}
+		})
+	}
+}

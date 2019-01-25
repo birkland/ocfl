@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/metadata"
@@ -13,11 +14,34 @@ import (
 // Driver represents the filesystem driver for OCFL
 type Driver struct {
 	root *ocfl.EntityRef
+	cfg  Config
 }
 
-// Config encapsulates an OCFL filesystem driver config
+// PathFunc generates a relative, solidus deliminated file path
+// from a given identifier.  Path functions are used for mapping
+// OCFL object identifiers to ocfl object root directories (possibly
+// with intervening directories, e.g. pairtrees), as well as mapping
+// file logical paths to physical paths.
+type PathFunc func(id string) string
+
+// Config encapsulates an OCFL filesystem driver config.
+//
+// Object and file path functions are mandatory whenever the Driver
+// will be used for writes, and are optional for reads.  That being said,
+// if an ObjectPathFunc is provided, it will be used for quick lookups
+// of OCFL object directories.  If not provided, the driver will perform
+// a brute force search through the directory tree when it needs to perform
+// lookups of OCFL directories when given an object ID.
 type Config struct {
-	Root string // ocfl root directory
+	Root           string   // ocfl root directory
+	ObjectPathFunc PathFunc // OCFL object directories based on id
+	FilePathFunc   PathFunc // physical file paths based on logical path
+}
+
+// Passthrough is a basic PathGen function for creating filesystem paths that
+// are identical to the input, except with ant leading solidus removed.
+func Passthrough(id string) string {
+	return strings.TrimLeft(id, "/")
 }
 
 // NewDriver initializes a new filesystem OCFL driver with
@@ -44,21 +68,22 @@ func NewDriver(cfg Config) (*Driver, error) {
 	}, nil
 }
 
-func readMetadata(path string) (*metadata.Inventory, error) {
+// Given the path of an OCFL object root directory, read the inventory inside
+func readMetadata(objPath string) (*metadata.Inventory, error) {
 	inv := metadata.Inventory{}
 
-	file, err := os.Open(filepath.Join(path, metadata.InventoryFile))
+	file, err := os.Open(filepath.Join(objPath, metadata.InventoryFile))
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not open manifest at %s", path)
+		return nil, errors.Wrapf(err, "could not open manifest at %s", objPath)
 	}
 	defer func() {
 		if e := file.Close(); e != nil {
-			err = errors.Wrapf(err, "error closing file at %s", path)
+			err = errors.Wrapf(err, "error closing file at %s", objPath)
 		}
 	}()
 	err = metadata.Parse(file, &inv)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not parse manifest at %s", path)
+		return nil, errors.Wrapf(err, "could not parse manifest at %s", objPath)
 	}
 
 	return &inv, nil

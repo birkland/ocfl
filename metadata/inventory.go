@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 )
 
 const InventoryFile = "inventory.json"
+
+const vfmt = "v%d"
 
 // Inventory defines the contents of an OCFL object, as defined by inventory.json in the OCFL spec
 type Inventory struct {
@@ -43,6 +46,10 @@ type Version struct {
 	User    User      `json:"user"`
 	State   Manifest  `json:"state"`
 }
+
+// VersionID contains a version ID representation as consistent with the OCFL spec.
+// It starts with v, may be zero padded, etc.
+type VersionID string
 
 // User is an OCFL user, as defined by inventory.json
 type User struct {
@@ -132,4 +139,39 @@ func (i *Inventory) Files(version string) ([]File, error) {
 	}
 
 	return files, nil
+}
+
+func (v VersionID) Valid() bool {
+	if len(v) < 2 || v[0] != 'v' {
+		return false
+	}
+
+	i, err := v.Int()
+	return err == nil && i > 0
+}
+
+func (v VersionID) Int() (int, error) {
+	i, err := strconv.ParseInt(strings.TrimLeft(string(v), "v"), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(i), nil
+}
+
+func (v VersionID) Increment() (VersionID, error) {
+	var fmts = vfmt
+
+	if !v.Valid() {
+		return "", fmt.Errorf("Version %s is not a valid OCFL version", v)
+	}
+
+	if v[1] == '0' { // Padded!
+		fmts = fmt.Sprintf("v%%0%dd", len(v)-1)
+	}
+
+	i, _ := v.Int()
+	fmt.Println(fmts)
+
+	return VersionID(fmt.Sprintf(fmts, i+1)), nil
 }

@@ -18,33 +18,33 @@ const ocflRoot = "0=ocfl_1.0"
 // Filesystem paths that point to individual files can actually alias to several
 // logical files within an OCFL object version, hence the need to return the result
 // as an array.
-func resolve(loc string) (ref []ocfl.EntityRef, err error) {
+func resolve(loc string) ([]ocfl.EntityRef, *metadata.Inventory, error) {
 	var refs []ocfl.EntityRef
 	var inv *metadata.Inventory
 
 	addr, err := filepath.Abs(loc)
 	if err != nil {
-		return refs, errors.Wrapf(err, "could not find absolute path of %s", loc)
+		return refs, nil, errors.Wrapf(err, "could not calculate absolute path of %s", loc)
 	}
 
 	// First, find its root (object, or OCFL root)
 	rootRef, err := crawlForRoot(filepath.Join(addr, "_"), ocfl.Any)
 	if err != nil {
-		return refs, errors.Wrapf(err, "error looking up %s", addr)
+		return refs, nil, err
 	}
 
 	if rootRef.Type == ocfl.Object {
 		inv, err = readMetadata(rootRef.Addr)
 		if err != nil {
-			return refs, err
+			return refs, inv, err
 		}
 
 		rootRef.ID = inv.ID
 	}
 
-	// If it's a root, we already found it!
+	// If it's an root, we already found it!
 	if rootRef.Addr == addr {
-		return []ocfl.EntityRef{*rootRef}, nil
+		return []ocfl.EntityRef{*rootRef}, inv, nil
 	}
 
 	// If it's not a root, but its root is the OCFL root, then
@@ -55,7 +55,7 @@ func resolve(loc string) (ref []ocfl.EntityRef, err error) {
 			Parent: rootRef,
 			Type:   ocfl.Intermediate,
 			Addr:   addr,
-		}}, nil
+		}}, inv, nil
 	}
 
 	// We're below an OCFL object.  Get the version ID - which is the name of the next directory.
@@ -71,7 +71,7 @@ func resolve(loc string) (ref []ocfl.EntityRef, err error) {
 
 	// If we had the address of a version directory, then that's it
 	if version.Addr == addr {
-		return []ocfl.EntityRef{version}, nil
+		return []ocfl.EntityRef{version}, inv, nil
 	}
 
 	// Otherwise, we have an individual file.  This is the difficult case,
@@ -100,7 +100,7 @@ func resolve(loc string) (ref []ocfl.EntityRef, err error) {
 		}
 	}
 
-	return refs, nil
+	return refs, inv, nil
 }
 
 func findDigest(inv *metadata.Inventory, path string) metadata.Digest {
@@ -115,6 +115,8 @@ func findDigest(inv *metadata.Inventory, path string) metadata.Digest {
 	return ""
 }
 
+// Find the desired kind of root (ocfl object, ocfl root) of the
+// given entity. Returns an error if it cannot be found.
 func findRoot(ref *ocfl.EntityRef, t ocfl.Type) (*ocfl.EntityRef, error) {
 
 	if ref == nil {
@@ -137,6 +139,7 @@ func findRoot(ref *ocfl.EntityRef, t ocfl.Type) (*ocfl.EntityRef, error) {
 }
 
 // Crawl up a directory hierarchy until we reach an OCFL root.
+// Returns an error if no roots are found.
 func crawlForRoot(loc string, t ocfl.Type) (*ocfl.EntityRef, error) {
 
 	addr, err := filepath.Abs(loc)
@@ -166,6 +169,8 @@ func crawlForRoot(loc string, t ocfl.Type) (*ocfl.EntityRef, error) {
 }
 
 // Detect if this is an OCFL root or OCFL object root
+// returns an error if the given path is not found or otherwise
+// there is a problem accessing it.
 func isRoot(path string, t ocfl.Type) (bool, ocfl.Type, error) {
 	var namaste string
 	switch t {
@@ -180,12 +185,12 @@ func isRoot(path string, t ocfl.Type) (bool, ocfl.Type, error) {
 		}
 		return isRoot(path, ocfl.Object)
 	default:
-		return false, t, fmt.Errorf("type %s cannot be an ocfl root", t)
+		return false, t, nil
 	}
 
 	dir, err := os.Stat(path)
 	if err != nil {
-		return false, t, errors.Wrapf(err, "Could not stat %s", path)
+		return false, t, err
 	}
 
 	if !dir.IsDir() {
