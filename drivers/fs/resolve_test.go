@@ -28,7 +28,7 @@ func TestResolveLogical(t *testing.T) {
 		{"file", []string{"urn:/a/d/obj2", "v3", "obj2-new.txt"}, ocfl.Select{Type: ocfl.File}, []string{"obj2-new.txt"}},
 	}
 
-	d, err := fs.NewDriver("testdata/ocflroot")
+	d, err := fs.NewDriver(fs.Config{Root: "testdata/ocflroot"})
 	if err != nil {
 		t.Fatalf("Error setting up driver: %s", err)
 	}
@@ -74,7 +74,7 @@ func TestResolveHead(t *testing.T) {
 			ocfl.Select{Type: ocfl.File, Head: true}, []string{}},
 	}
 
-	d, err := fs.NewDriver("testdata/ocflroot")
+	d, err := fs.NewDriver(fs.Config{Root: "testdata/ocflroot"})
 	if err != nil {
 		t.Fatalf("Error setting up driver: %s", err)
 	}

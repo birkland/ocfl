@@ -21,7 +21,7 @@ func TestNewDriver(t *testing.T) {
 	for _, c := range cases {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
-			_, err := fs.NewDriver(c.path)
+			_, err := fs.NewDriver(fs.Config{Root: c.path})
 			if (err != nil) != c.expectErr {
 				t.Errorf("expected error: %t, got error: %t", c.expectErr, (err != nil))
 			}

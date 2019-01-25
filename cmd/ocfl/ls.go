@@ -60,7 +60,7 @@ var ls cli.Command = cli.Command{
 }
 
 func lsAction(args []string) error {
-	fs, err := fs.NewDriver(mainOpts.root)
+	fs, err := fs.NewDriver(fs.Config{Root: mainOpts.root})
 	if err != nil {
 		return errors.Wrapf(err, "could not initialize file driver")
 	}
