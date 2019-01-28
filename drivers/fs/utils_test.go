@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/birkland/ocfl/drivers/fs"
+	"github.com/go-test/deep"
 )
 
 func TestAtomicWriteCommit(t *testing.T) {
@@ -70,7 +71,6 @@ func TestAtomicConflict(t *testing.T) {
 		fileName := filepath.Join(tempDir, "err")
 
 		conflictingFileName := filepath.Join(tempDir, ".ocfl.atomic.err")
-		fmt.Printf("Conflicting file: %s\n", conflictingFileName)
 
 		_ = ioutil.WriteFile(conflictingFileName, []byte("I'm in the way!"), 0664)
 
@@ -87,6 +87,53 @@ func TestManagedWriteCloseError(t *testing.T) {
 	if badCloser.Close() == nil {
 		t.Errorf("should have thrown an error")
 	}
+}
+
+func TestTeeWriter(t *testing.T) {
+	cases := []struct {
+		name        string
+		lengths     []int
+		shouldError bool
+	}{
+		{"NormalWrite", []int{11, 11}, false},
+		{"ShortWrite", []int{2, 2}, false},
+		{"MismatchedWrite", []int{5, 4}, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dest := writeProbe{length: c.lengths[0]}
+			tee := writeProbe{length: c.lengths[1]}
+
+			writer := fs.TeeWriter{
+				Writer: dest,
+				Tee:    tee,
+			}
+
+			_, err := writer.Write([]byte(c.name))
+			if (err != nil) != c.shouldError {
+				t.Errorf("should have error? %t, had error? %t", c.shouldError, err != nil)
+			}
+
+			if len(deep.Equal(dest.written, tee.written)) != 0 {
+				t.Errorf("Got different bytes!")
+			}
+		})
+	}
+}
+
+type writeProbe struct {
+	length  int
+	err     bool
+	written []byte
+}
+
+func (w writeProbe) Write(b []byte) (int, error) {
+	if w.err {
+		return 0, fmt.Errorf("an error")
+	}
+	written := make([]byte, w.length)
+	return copy(b, written), nil
 }
 
 type errcloser struct{}

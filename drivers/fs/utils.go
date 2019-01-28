@@ -99,3 +99,27 @@ func AtomicWrite(path string) (*ManagedWrite, error) {
 		},
 	}, nil
 }
+
+// TeeWriter passes along bytes to a given "Tee" writer as it writes
+// to a Destination writer.
+type TeeWriter struct {
+	io.Writer           // Destination
+	Tee       io.Writer // Bytes get cc'd to the tee
+}
+
+func (t *TeeWriter) Write(b []byte) (n int, err error) {
+	wbytes, err := t.Writer.Write(b)
+	if err != nil {
+		return wbytes, err
+	}
+
+	tbytes, err := t.Tee.Write(b[:wbytes])
+	if err != nil {
+		return tbytes, errors.Wrapf(err, "could not tee write")
+	}
+	if tbytes != wbytes {
+		return wbytes, fmt.Errorf("bytes written != bytes processed")
+	}
+
+	return wbytes, nil
+}
