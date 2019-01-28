@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// InventoryFile contains the name of OCFL inventory files
 const InventoryFile = "inventory.json"
 
 const vfmt = "v%d"
@@ -55,6 +56,25 @@ type VersionID string
 type User struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
+}
+
+// NewInventory creates a new, empty inventory with reasonable defaults:
+// sha512 digest algorithm (can be changed by callee if need be),
+// with an empty "v1" version.  The manifest and v1's state are initialized
+// with empty maps.
+func NewInventory(id string) *Inventory {
+	return &Inventory{
+		ID:              id,
+		Type:            "Object",
+		Head:            "v1",
+		DigestAlgorithm: "sha512",
+		Versions: map[string]Version{
+			"v1": {
+				Created: time.Now(),
+			},
+		},
+		Manifest: make(map[Digest][]string, 10),
+	}
 }
 
 // File describes individual files within an OCFL object.  It is constructed from the contents if an
@@ -141,6 +161,8 @@ func (i *Inventory) Files(version string) ([]File, error) {
 	return files, nil
 }
 
+// Valid determines whether the given version ID complies with
+// the OCFL rules for naming version IDs.
 func (v VersionID) Valid() bool {
 	if len(v) < 2 || v[0] != 'v' {
 		return false
@@ -150,6 +172,7 @@ func (v VersionID) Valid() bool {
 	return err == nil && i > 0
 }
 
+// Int returns the integer value of an OCFL version
 func (v VersionID) Int() (int, error) {
 	i, err := strconv.ParseInt(strings.TrimLeft(string(v), "v"), 10, 64)
 	if err != nil {
@@ -159,11 +182,13 @@ func (v VersionID) Int() (int, error) {
 	return int(i), nil
 }
 
+// Increment increments an OCFL version, respecting padding if a given
+// version ID is padded
 func (v VersionID) Increment() (VersionID, error) {
 	var fmts = vfmt
 
 	if !v.Valid() {
-		return "", fmt.Errorf("Version %s is not a valid OCFL version", v)
+		return "", fmt.Errorf("version %s is not a valid OCFL version", v)
 	}
 
 	if v[1] == '0' { // Padded!
