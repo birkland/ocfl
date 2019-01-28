@@ -40,6 +40,8 @@ func newScope(under *ocfl.EntityRef, desired ocfl.Select) (*scope, error) {
 	}, nil
 }
 
+// Walk crawls the filesystem from a given starting point (physical path, or logical ID),
+// and invokes a callback that matches the criteria provided in the given selector.
 func (d *Driver) Walk(desired ocfl.Select, cb func(ocfl.EntityRef) error, loc ...string) error {
 	startFrom := &ocfl.EntityRef{}
 
@@ -180,7 +182,7 @@ func (s *scope) walk(f func(ocfl.EntityRef) error) error {
 // Walk the OCFL manifest
 func (s *scope) walkObject(path string, f func(ocfl.EntityRef) error) (err error) {
 
-	inv, err := readMetadata(path)
+	inv, err := ReadInventory(path)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ func resolve(loc string) ([]ocfl.EntityRef, *metadata.Inventory, error) {
 	}
 
 	if rootRef.Type == ocfl.Object {
-		inv, err = readMetadata(rootRef.Addr)
+		inv, err = ReadInventory(rootRef.Addr)
 		if err != nil {
 			return refs, inv, err
 		}
@@ -135,7 +135,7 @@ func findRoot(ref *ocfl.EntityRef, t ocfl.Type) (*ocfl.EntityRef, error) {
 		return crawlForRoot(ref.Addr, ocfl.Root)
 	}
 
-	return nil, fmt.Errorf("Could not find %s root of %s", t, ref.Addr)
+	return nil, fmt.Errorf("could not find %s root of %s", t, ref.Addr)
 }
 
 // Crawl up a directory hierarchy until we reach an OCFL root.
@@ -144,7 +144,7 @@ func crawlForRoot(loc string, t ocfl.Type) (*ocfl.EntityRef, error) {
 
 	addr, err := filepath.Abs(loc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Could not make absolute %s", addr)
+		return nil, errors.Wrapf(err, "could not make absolute %s", addr)
 	}
 
 	parent := filepath.Dir(addr)
