@@ -2,12 +2,9 @@ package fs
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/birkland/ocfl"
-	"github.com/birkland/ocfl/metadata"
 	"github.com/pkg/errors"
 )
 
@@ -38,7 +35,7 @@ type Config struct {
 	FilePathFunc   PathFunc // physical file paths based on logical path
 }
 
-// Passthrough is a basic PathGen function for creating filesystem paths that
+// Passthrough is a basic PathFunc for creating filesystem paths that
 // are identical to the input, except with ant leading solidus removed.
 func Passthrough(id string) string {
 	return strings.TrimLeft(id, "/")
@@ -66,25 +63,4 @@ func NewDriver(cfg Config) (*Driver, error) {
 			Addr: cfg.Root,
 		},
 	}, nil
-}
-
-// Given the path of an OCFL object root directory, read the inventory inside
-func readMetadata(objPath string) (*metadata.Inventory, error) {
-	inv := metadata.Inventory{}
-
-	file, err := os.Open(filepath.Join(objPath, metadata.InventoryFile))
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not open manifest at %s", objPath)
-	}
-	defer func() {
-		if e := file.Close(); e != nil {
-			err = errors.Wrapf(err, "error closing file at %s", objPath)
-		}
-	}()
-	err = metadata.Parse(file, &inv)
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not parse manifest at %s", objPath)
-	}
-
-	return &inv, nil
 }
