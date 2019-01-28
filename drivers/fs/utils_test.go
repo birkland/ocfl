@@ -82,6 +82,56 @@ func TestAtomicConflict(t *testing.T) {
 	})
 }
 
+func TestSafeWrite(t *testing.T) {
+	runInTempDir(t, func(tempDir string) {
+		existingFileName := filepath.Join(tempDir, "exists")
+		nonExistingFileName := filepath.Join(tempDir, "notExists")
+
+		_ = ioutil.WriteFile(existingFileName, []byte("I already Exist!"), 0664)
+
+		for _, name := range []string{existingFileName, nonExistingFileName} {
+			w, err := fs.SafeWrite(name)
+			if err != nil {
+				t.Errorf("safe write threw an error")
+			}
+			defer w.Close()
+			_, err = w.Write([]byte("hello"))
+			if err != nil {
+				t.Errorf("could not write! %s", err)
+			}
+
+			if w.Close() != nil {
+				t.Errorf("Error closing! %s", err)
+			}
+		}
+
+	})
+}
+
+func TestSafeWriteRollback(t *testing.T) {
+	runInTempDir(t, func(tempDir string) {
+		fileName := filepath.Join(tempDir, "rollback")
+		writer, _ := fs.SafeWrite(fileName)
+		defer func() {
+			err := writer.Rollback()
+			if err != nil {
+				t.Errorf("deferred rollback failed! %s", err)
+			}
+		}()
+
+		_, _ = io.WriteString(writer, "something")
+		err := writer.Rollback()
+		if err != nil {
+			t.Errorf("error rolling back! %s", err)
+		}
+
+		files, err := ioutil.ReadDir(tempDir)
+		if err != nil || len(files) > 0 {
+			t.Errorf("rollback did not clean up temp files!")
+		}
+	})
+}
+
 func TestManagedWriteCloseError(t *testing.T) {
 	badCloser := &fs.ManagedWrite{WriteCloser: &errcloser{}}
 	if badCloser.Close() == nil {
@@ -101,6 +151,7 @@ func TestTeeWriter(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		c := c
 		t.Run(c.name, func(t *testing.T) {
 			dest := writeProbe{length: c.lengths[0]}
 			tee := writeProbe{length: c.lengths[1]}

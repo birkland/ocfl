@@ -82,7 +82,6 @@ func (w *ManagedWrite) closeWith(f func() error) error {
 func AtomicWrite(path string) (*ManagedWrite, error) {
 
 	tname := filepath.Join(filepath.Dir(path), AtomicPrefix+filepath.Base(path))
-	fmt.Printf("Using temp file %s\n", tname)
 	tfile, err := os.OpenFile(tname, os.O_WRONLY|os.O_EXCL|os.O_CREATE, 0664)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not create temporary file %s", tname)
@@ -96,6 +95,26 @@ func AtomicWrite(path string) (*ManagedWrite, error) {
 		},
 		rollbackFunc: func() error {
 			return os.Remove(tname)
+		},
+	}, nil
+}
+
+// SafeWrite attempts to create a file at the given path to write to.  If
+// a file already exists there, it'll do an AtomicWrite which writes to
+// a temporary file, and atomically renames when successful.
+func SafeWrite(path string) (*ManagedWrite, error) {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_EXCL|os.O_CREATE, 0664)
+	if err != nil && os.IsExist(err) {
+		return AtomicWrite(path)
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not create file for writing %s", path)
+	}
+
+	return &ManagedWrite{
+		WriteCloser: file,
+		rollbackFunc: func() error {
+			return os.Remove(path)
 		},
 	}, nil
 }
