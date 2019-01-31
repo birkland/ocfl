@@ -3,7 +3,6 @@ package fs_test
 import (
 	"io/ioutil"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,14 +10,13 @@ import (
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/fs"
-	"github.com/birkland/ocfl/metadata"
 	"github.com/go-test/deep"
 )
 
-// Most bare bones roundtriping; just a smoke test
+// Most bare bones roundtripping; just a smoke test
 func TestPutRoundtrip(t *testing.T) {
 
-	objectId := "urn:test/myObj"
+	objectID := "urn:test/myObj"
 
 	runInTempDir(t, func(ocflRoot string) {
 
@@ -41,7 +39,7 @@ func TestPutRoundtrip(t *testing.T) {
 			t.Fatalf("Error setting up driver %+v", err)
 		}
 
-		session, err := driver.Open(objectId, ocfl.Options{
+		session, err := driver.Open(objectID, ocfl.Options{
 			Create:  true,
 			Version: ocfl.NEW,
 		})
@@ -69,7 +67,7 @@ func TestPutRoundtrip(t *testing.T) {
 		err = driver.Walk(ocfl.Select{Type: ocfl.File}, func(ref ocfl.EntityRef) error {
 			visited = append(visited, ref)
 			return nil
-		}, objectId)
+		}, objectID)
 		if err != nil {
 			t.Fatalf("walk failed: %+v", err)
 		}
@@ -78,13 +76,10 @@ func TestPutRoundtrip(t *testing.T) {
 			t.Fatalf("Didn't see the record we just added %+v", err)
 		}
 
-		var i metadata.Inventory
-		invFile, err := os.Open(filepath.Join(visited[0].Parent.Parent.Addr, metadata.InventoryFile))
+		i, err := fs.ReadInventory(visited[0].Parent.Addr)
 		if err != nil {
 			t.Fatalf("Could not open inventory file %+v", err)
 		}
-
-		metadata.Parse(invFile, &i)
 
 		file, err := i.Files("v1")
 		if err != nil {
@@ -101,7 +96,7 @@ func TestPutRoundtrip(t *testing.T) {
 			a    interface{}
 			b    interface{}
 		}{
-			{"objectID", objectId, i.ID},
+			{"objectID", objectID, i.ID},
 			{"versionName", "v1", i.Head},
 			{"fileName", fileName, file[0].LogicalPath},
 			{"commitName", commitName, i.Versions["v1"].User.Name},
@@ -112,6 +107,7 @@ func TestPutRoundtrip(t *testing.T) {
 		}
 
 		for _, c := range assertions {
+			c := c
 			t.Run(c.name, func(t *testing.T) {
 				errors := deep.Equal(c.a, c.b)
 				if len(errors) > 0 {
