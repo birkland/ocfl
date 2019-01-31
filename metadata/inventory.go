@@ -26,6 +26,8 @@ type Inventory struct {
 	Manifest        Manifest           `json:"manifest"`
 	Versions        map[string]Version `json:"versions"`
 	Fixity          Fixity             `json:"fixity"`
+	stateIndex      map[string]Digest  // internal index for managing updates
+	manifestIndex   map[string]Digest  // internal index for managing updates
 }
 
 // DigestAlgorithm is identifier for an ocfl-approved digest algorithm, as defined by inventory.json in the OCFL spec
@@ -99,7 +101,9 @@ func Parse(r io.Reader, i *Inventory) error {
 
 // Serialize writes the contents of the inventory to json
 func (i *Inventory) Serialize(w io.Writer) error {
-	return json.NewEncoder(w).Encode(i)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	return enc.Encode(i)
 }
 
 // Files consolidates metadata for each logical file in a version
@@ -161,6 +165,86 @@ func (i *Inventory) Files(version string) ([]File, error) {
 	return files, nil
 }
 
+// AddFile adds a logical file to the OCFL manifest and HEAD version state
+// an error is thrown if the logical or physical path conflicts with content
+// already in the inventory.
+func (i *Inventory) AddFile(logicalPath, relativePath string, digest Digest) error {
+
+	err := i.indexHead()
+	if err != nil {
+		return err
+	}
+
+	stateDigest, stateConflict := i.stateIndex[logicalPath]
+	if stateConflict && stateDigest != digest {
+		return fmt.Errorf("conflict!  Cannot overwite logical path %s in %s %s", logicalPath, i.ID, i.Head)
+	}
+
+	manifestDIgest, manifestConflict := i.manifestIndex[relativePath]
+	if manifestConflict && manifestDIgest != digest {
+		return fmt.Errorf("conflict! Cannot overwrite file %s in %s", relativePath, i.ID)
+	}
+
+	if !stateConflict {
+		i.addPathMapping(logicalPath, digest, i.stateIndex, i.Versions[i.Head].State)
+	}
+
+	if !manifestConflict {
+		i.addPathMapping(relativePath, digest, i.manifestIndex, i.Manifest)
+	}
+
+	return nil
+}
+
+func (i *Inventory) addPathMapping(path string, digest Digest, index map[string]Digest, state Manifest) {
+	index[path] = digest
+
+	paths, ok := state[digest]
+	if !ok {
+		state[digest] = []string{path}
+		return
+	}
+
+	state[digest] = append(paths, path)
+}
+
+func (i *Inventory) indexHead() error {
+
+	if i.stateIndex == nil {
+		index, err := index(i.Versions[i.Head].State)
+		if err != nil {
+			return errors.Wrapf(err, "error indexing state for %s %s", i.ID, i.Head)
+		}
+		i.stateIndex = index
+	}
+
+	if i.manifestIndex == nil {
+		index, err := index(i.Manifest)
+		if err != nil {
+			return errors.Wrapf(err, "error indexing manifest for %s", i.ID)
+		}
+		i.manifestIndex = index
+	}
+
+	return nil
+}
+
+// create transient indexes to support updates
+func index(m Manifest) (map[string]Digest, error) {
+	index := make(map[string]Digest, len(m))
+
+	for digest, paths := range m {
+		for _, p := range paths {
+			if d, conflict := index[p]; conflict && d != digest {
+				return nil, fmt.Errorf("conflict! found duplicate path %s with different digests", p)
+			}
+			index[p] = digest
+		}
+	}
+
+	return index, nil
+}
+
 // Valid determines whether the given version ID complies with
 // the OCFL rules for naming version IDs.
 func (v VersionID) Valid() bool {
@@ -196,7 +280,6 @@ func (v VersionID) Increment() (VersionID, error) {
 	}
 
 	i, _ := v.Int()
-	fmt.Println(fmts)
 
 	return VersionID(fmt.Sprintf(fmts, i+1)), nil
 }

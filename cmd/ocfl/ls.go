@@ -60,12 +60,13 @@ var ls cli.Command = cli.Command{
 }
 
 func lsAction(args []string) error {
-	fs, err := fs.NewDriver(fs.Config{Root: mainOpts.root})
+	var d ocfl.Driver
+	d, err := fs.NewDriver(fs.Config{Root: mainOpts.root})
 	if err != nil {
 		return errors.Wrapf(err, "could not initialize file driver")
 	}
 
-	return fs.Walk(ocfl.Select{Type: ocfl.ParseType(lsOpts.ocfltype), Head: lsOpts.head}, func(ref ocfl.EntityRef) error {
+	return d.Walk(ocfl.Select{Type: ocfl.ParseType(lsOpts.ocfltype), Head: lsOpts.head}, func(ref ocfl.EntityRef) error {
 		coords := ref.Coords()
 
 		if lsOpts.physical {

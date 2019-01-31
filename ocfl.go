@@ -3,6 +3,7 @@ package ocfl
 import (
 	"io"
 	"strings"
+	"time"
 )
 
 // Type names a kind of OCFL entity
@@ -93,9 +94,8 @@ func (e EntityRef) Coords() []string {
 // or an auto-named new version.  Otherwise, provide the name of an existing
 // version to access its contents.
 type Options struct {
-	Create           bool     // If true, this will create a new object if one does not exist.
-	DigestAlgorithms []string // Desired fixity digest algorithms when writing new files.
-	Version          string   // Desired version, default (zero value) ocfl.HEAD
+	Create  bool   // If true, this will create a new object if one does not exist.
+	Version string // Desired version, default (zero value) ocfl.HEAD
 }
 
 // CommitInfo defines informative text to be included when committing an OCFL version
@@ -103,7 +103,7 @@ type CommitInfo struct {
 	Name    string // User name
 	Address string // Some sort of identifier - e-mail, URL, etc
 	Message string // Freeform text
-	// TODO: maybe a date here?
+	Date    time.Time
 }
 
 // Session allows reading or writing to the an OCFL object.

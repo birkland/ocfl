@@ -45,7 +45,9 @@ func Passthrough(id string) string {
 // the given OCFL root directory.
 func NewDriver(cfg Config) (*Driver, error) {
 	if cfg.Root == "" {
-		return &Driver{}, nil
+		return &Driver{
+			cfg: cfg,
+		}, nil
 	}
 
 	isRoot, _, err := isRoot(cfg.Root, ocfl.Root)
@@ -62,5 +64,6 @@ func NewDriver(cfg Config) (*Driver, error) {
 			Type: ocfl.Root,
 			Addr: cfg.Root,
 		},
+		cfg: cfg,
 	}, nil
 }
