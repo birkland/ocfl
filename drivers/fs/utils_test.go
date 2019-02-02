@@ -195,7 +195,12 @@ func (*errcloser) Close() error {
 func (*errcloser) Write([]byte) (int, error) {
 	return 0, nil
 }
-func runInTempDir(t *testing.T, f func(string)) {
+
+type fataler interface {
+	Fatal(args ...interface{})
+}
+
+func runInTempDir(t fataler, f func(string)) {
 	tempDir, err := ioutil.TempDir("", "ocfl_test")
 	if err != nil {
 		t.Fatal("Could not create testing temp dir")

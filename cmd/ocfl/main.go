@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/urfave/cli"
 )
 
@@ -18,6 +19,7 @@ func main() {
 	app.Usage = "OCFL commandline utilities"
 	app.EnableBashCompletion = true
 	app.Commands = []cli.Command{
+		cp,
 		ls,
 	}
 	app.Flags = []cli.Flag{
@@ -39,4 +41,21 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func root(dir string) string {
+	if dir == "" {
+		pwd, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("could not get pwd %s", err)
+		}
+		dir = pwd
+	}
+
+	dir, err := fs.LocateRoot(dir)
+	if err != nil {
+		log.Fatalf("error locating root %s", err)
+	}
+
+	return dir
 }

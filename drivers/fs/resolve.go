@@ -14,6 +14,28 @@ import (
 const ocflObjectRoot = "0=ocfl_object_1.0"
 const ocflRoot = "0=ocfl_1.0"
 
+// LocateRoot attempts find the first directory matching an OCFL root
+// in the given directory, or any parent directories.  The primary use case
+// is finding the identity of the ocfl root when given the location of some file
+// somewhere within it.
+func LocateRoot(loc string) (string, error) {
+
+	isRoot, _, err := isRoot(loc, ocfl.Root)
+	if err != nil {
+		return "", errors.Wrap(err, "error finding ocfl root")
+	}
+
+	if isRoot {
+		return loc, nil
+	}
+
+	root, err := crawlForRoot(loc, ocfl.Root)
+	if err != nil {
+		return "", errors.Wrap(err, "error finding ocfl root")
+	}
+	return root.Addr, nil
+}
+
 // resolve takes a filesystem path and maps it to logical OCFL entities.
 // Filesystem paths that point to individual files can actually alias to several
 // logical files within an OCFL object version, hence the need to return the result

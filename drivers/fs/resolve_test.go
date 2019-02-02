@@ -1,6 +1,7 @@
 package fs_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/birkland/ocfl"
@@ -12,6 +13,35 @@ type resolveCase struct {
 	loc         []string
 	selector    ocfl.Select
 	expectedIDs []string
+}
+
+func TestLocateRoot(t *testing.T) {
+	root := root(t, testroot).Addr
+
+	cases := []struct {
+		name     string
+		file     string
+		expected string
+	}{
+		{"equalsRoot", root, root},
+		{"directory", filepath.Join(root, "a/b"), root},
+		{"file", filepath.Join(root, "obj4/v1/content/1"), root},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+
+			dir, err := fs.LocateRoot(c.file)
+			if err != nil {
+				t.Fatalf("Error locating root when starting from %s:  %+v", c.file, err)
+			}
+
+			if dir != c.expected {
+				t.Fatalf("Wrong root!  Wanted %s, got %s", c.expected, dir)
+			}
+		})
+	}
 }
 
 // Tests the resolution of file paths via walk
