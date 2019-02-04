@@ -69,7 +69,7 @@ func (d *Driver) Open(id string, opts ocfl.Options) (sess ocfl.Session, err erro
 	}
 
 	// Otherwise, open the specific desired version
-	err = s.openVersion(opts.Version)
+	err = s.openVersion(obj, opts.Version)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not open version %s of %s", id, opts.Version)
 	}
@@ -356,8 +356,25 @@ func (s *session) writeNamaste() error {
 	return ioutil.WriteFile(namasteFile, []byte(ocflObjectRoot), 0664)
 }
 
-func (s *session) openVersion(v string) error {
-	return fmt.Errorf("not implemented")
+func (s *session) openVersion(obj *ocfl.EntityRef, v string) error {
+	if v == ocfl.HEAD {
+		v = s.inventory.Head
+	}
+
+	_, ok := s.inventory.Versions[v]
+	if !ok {
+		return fmt.Errorf("no version %s present in %s", v, obj.ID)
+	}
+
+	s.version = &ocfl.EntityRef{
+		Type:   ocfl.Version,
+		ID:     v,
+		Addr:   filepath.Join(obj.Addr, v),
+		Parent: obj,
+	}
+	s.contentDir = filepath.Join(s.version.Addr, "content")
+
+	return nil
 }
 
 func (s *session) filePaths(lpath string) (objectRelative, absolute string) {

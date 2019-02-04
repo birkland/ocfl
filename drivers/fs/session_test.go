@@ -118,6 +118,9 @@ func TestNewVersion(t *testing.T) {
 		session.Put(file2, strings.NewReader(fileContent[file2]))
 		session.Commit(ocfl.CommitInfo{})
 
+		// Finally, open a new session to read
+		session = driver.Open(objectID, ocfl.Options{})
+
 		var visited []ocfl.EntityRef
 
 		driver.Walk(ocfl.Select{Type: ocfl.File, Head: true}, func(ref ocfl.EntityRef) error {
@@ -131,9 +134,57 @@ func TestNewVersion(t *testing.T) {
 	})
 }
 
+func TestNoObjectPathFunc(t *testing.T) {
+	runWithDriverWrapper(t, func(driver driverWrapper) {
+
+		// First, add one file
+		session := driver.Open(objectID, ocfl.Options{
+			Create:  true,
+			Version: ocfl.NEW,
+		})
+		session.Put("a file", strings.NewReader("foo"))
+		session.Commit(ocfl.CommitInfo{})
+
+		// Now we create another driver with no object path function
+		driver2, err := fs.NewDriver(fs.Config{
+			Root:         driver.root,
+			FilePathFunc: fs.Passthrough,
+		})
+		if err != nil {
+			t.Fatalf("Error setting up second driver %+v", err)
+		}
+
+		// We should have no problem opening
+		session2, err := driver2.Open(objectID, ocfl.Options{})
+		if err != nil {
+			t.Fatalf("Could not open session with second driver %+v", err)
+		}
+
+		// .. and no problem writing!
+		err = session2.Put("foo/bar.txt", strings.NewReader("myText"))
+		if err != nil {
+			t.Fatalf("Should not have seen an error!")
+		}
+		err = session2.Commit(ocfl.CommitInfo{})
+		if err != nil {
+			t.Fatalf("Should not have thrown an error! %+v", err)
+		}
+
+		// .. but since there is no object path function, driver2 should error when new object
+		_, err = driver2.Open("test:shouldFail", ocfl.Options{
+			Create:  true,
+			Version: ocfl.NEW,
+		})
+		if err == nil {
+			t.Errorf("Should have thrown an error")
+		}
+	})
+}
+
 type driverWrapper struct {
 	driver ocfl.Driver
 	t      *testing.T
+	root   string
 }
 
 func (w driverWrapper) Open(id string, opts ocfl.Options) sessionWrapper {
@@ -191,6 +242,8 @@ func runWithDriverWrapper(t *testing.T, f func(driverWrapper)) {
 		f(driverWrapper{
 			driver: driver,
 			t:      t,
+			root:   ocflRoot,
 		})
 	})
 }
+
