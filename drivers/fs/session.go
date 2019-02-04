@@ -30,7 +30,9 @@ const hashSuffix = ".sha512"
 
 // Open creates a session providing read/write access to the specified
 // OCFL object.
-func (d *Driver) Open(id string, opts ocfl.Options) (ocfl.Session, error) {
+func (d *Driver) Open(id string, opts ocfl.Options) (sess ocfl.Session, err error) {
+
+	var obj *ocfl.EntityRef
 
 	s := &session{
 		driver: d,
@@ -38,7 +40,7 @@ func (d *Driver) Open(id string, opts ocfl.Options) (ocfl.Session, error) {
 	}
 
 	// See if an object already exists
-	obj, inv, err := d.readObject(id)
+	obj, s.inventory, err = d.readObject(id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not read object %s", id)
 	}
@@ -57,9 +59,9 @@ func (d *Driver) Open(id string, opts ocfl.Options) (ocfl.Session, error) {
 		return s, nil
 	}
 
-	// It does exist.  If the intent is to create a new version for writes, then prepare the new version
+	// If the intent is to create a new version for writes, then prepare the new version
 	if opts.Version == ocfl.NEW {
-		err := s.nextVersion(obj, inv)
+		err := s.nextVersion(obj)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error initializing new version of %s", id)
 		}
@@ -67,7 +69,7 @@ func (d *Driver) Open(id string, opts ocfl.Options) (ocfl.Session, error) {
 	}
 
 	// Otherwise, open the specific desired version
-	err = s.openVersion(inv, opts.Version)
+	err = s.openVersion(opts.Version)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not open version %s of %s", id, opts.Version)
 	}
@@ -150,7 +152,7 @@ func (s *session) initObject(id string) error {
 		ID:     id,
 		Addr:   objdir,
 		Parent: s.driver.root,
-	}, metadata.VersionID(s.inventory.Head))
+	}, "", metadata.VersionID(s.inventory.Head))
 	if err != nil {
 		return err
 	}
@@ -166,16 +168,17 @@ func (s *session) initObject(id string) error {
 }
 
 // Increment the version in the inventory, and set it up for writing
-func (s *session) nextVersion(obj *ocfl.EntityRef, inv *metadata.Inventory) error {
-	v, err := metadata.VersionID(s.inventory.Head).Increment()
+func (s *session) nextVersion(obj *ocfl.EntityRef) error {
+
+	prev := metadata.VersionID(s.inventory.Head)
+	next, err := prev.Increment()
 	if err != nil {
 		return fmt.Errorf("Error incrementing version '%s'", s.inventory.Head)
 	}
 
-	s.inventory = inv
-	err = s.setupVersion(obj, v)
+	err = s.setupVersion(obj, prev, next)
 	if err != nil {
-		return errors.Wrapf(err, "could not create version %s of %s", v, obj.ID)
+		return errors.Wrapf(err, "could not create version %s of %s", next, obj.ID)
 	}
 
 	err = s.prepareWrite()
@@ -188,17 +191,17 @@ func (s *session) nextVersion(obj *ocfl.EntityRef, inv *metadata.Inventory) erro
 
 // Initializes the content directory and version EntityRef when
 // creating a new version.
-func (s *session) setupVersion(obj *ocfl.EntityRef, id metadata.VersionID) error {
+func (s *session) setupVersion(obj *ocfl.EntityRef, prev, next metadata.VersionID) error {
 
-	if !id.Valid() {
-		return fmt.Errorf("bad version number %s", id)
+	if !next.Valid() {
+		return fmt.Errorf("bad version number %s", next)
 	}
 
 	s.version = &ocfl.EntityRef{
 		Type:   ocfl.Version,
 		Parent: obj,
-		ID:     string(id),
-		Addr:   filepath.Join(obj.Addr, string(id)),
+		ID:     string(next),
+		Addr:   filepath.Join(obj.Addr, string(next)),
 	}
 	s.contentDir = filepath.Join(s.version.Addr, "content")
 
@@ -207,10 +210,24 @@ func (s *session) setupVersion(obj *ocfl.EntityRef, id metadata.VersionID) error
 		return errors.Wrapf(err, "error creating content directory %s", s.contentDir)
 	}
 
-	s.inventory.Head = string(id)
+	s.inventory.Head = string(next)
 
-	s.inventory.Versions[s.inventory.Head] = metadata.Version{
-		State: make(map[metadata.Digest][]string, 10),
+	// Copy the previous version's state to the new version's state
+	if prevVersion, ok := s.inventory.Versions[string(prev)]; ok {
+		prevState := prevVersion.State
+		s.inventory.Versions[string(next)] = metadata.Version{
+			State: make(map[metadata.Digest][]string, len(prevVersion.State)),
+		}
+
+		nextState := s.inventory.Versions[string(next)].State
+
+		for k, v := range prevState {
+			nextState[k] = v
+		}
+	} else {
+		s.inventory.Versions[string(next)] = metadata.Version{
+			State: make(map[metadata.Digest][]string, 10),
+		}
 	}
 
 	return nil
@@ -339,7 +356,7 @@ func (s *session) writeNamaste() error {
 	return ioutil.WriteFile(namasteFile, []byte(ocflObjectRoot), 0664)
 }
 
-func (s *session) openVersion(inv *metadata.Inventory, v string) error {
+func (s *session) openVersion(v string) error {
 	return fmt.Errorf("not implemented")
 }
 
