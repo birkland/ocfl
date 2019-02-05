@@ -308,3 +308,159 @@ func TestVersionIncrement(t *testing.T) {
 		})
 	}
 }
+
+func TestPutFile(t *testing.T) {
+	before := func() *metadata.Inventory {
+		return &metadata.Inventory{
+			Head: "v2",
+			Manifest: metadata.Manifest{
+				"a": {"v1/content/a"},
+				"b": {"v2/content/b"},
+			},
+			Versions: map[string]metadata.Version{
+				"v1": {
+					State: metadata.Manifest{
+						"a": {"logical/a"},
+					},
+				},
+				"v2": {
+					State: metadata.Manifest{
+						"a": {"logical/a"},
+						"b": {"logical/b"},
+					},
+				},
+			},
+		}
+	}
+
+	cases := []struct {
+		name         string
+		logicalPath  string
+		physicalPath string
+		digest       metadata.Digest
+		expected     metadata.Inventory
+	}{
+		{
+			name:         "putNewFile",
+			logicalPath:  "logical/c",
+			physicalPath: "v2/content/c",
+			digest:       "c",
+			expected: metadata.Inventory{
+				Head: "v2",
+				Manifest: metadata.Manifest{
+					"a": {"v1/content/a"},
+					"b": {"v2/content/b"},
+					"c": {"v2/content/c"},
+				},
+				Versions: map[string]metadata.Version{
+					"v1": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+						},
+					},
+					"v2": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+							"b": {"logical/b"},
+							"c": {"logical/c"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:         "replaceFile",
+			logicalPath:  "logical/b",
+			physicalPath: "v2/content/b",
+			digest:       "c",
+			expected: metadata.Inventory{
+				Head: "v2",
+				Manifest: metadata.Manifest{
+					"a": {"v1/content/a"},
+					"c": {"v2/content/b"},
+				},
+				Versions: map[string]metadata.Version{
+					"v1": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+						},
+					},
+					"v2": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+							"c": {"logical/b"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:         "hashExists",
+			logicalPath:  "logical/c",
+			physicalPath: "v2/content/c",
+			digest:       "b",
+			expected: metadata.Inventory{
+				Head: "v2",
+				Manifest: metadata.Manifest{
+					"a": {"v1/content/a"},
+					"b": {"v2/content/b", "v2/content/c"},
+				},
+				Versions: map[string]metadata.Version{
+					"v1": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+						},
+					},
+					"v2": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+							"b": {"logical/b", "logical/c"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:         "idempotent",
+			logicalPath:  "logical/b",
+			physicalPath: "v2/content/b",
+			digest:       "b",
+			expected:     *before(),
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			inv := before()
+			err := inv.PutFile(c.logicalPath, c.physicalPath, c.digest)
+			if err != nil {
+				t.Fatalf("error invoking PutFile %+v", err)
+			}
+
+			mismatches := deep.Equal(&c.expected, inv)
+			if len(mismatches) > 0 {
+				t.Fatalf("errors in expected content: %s,\n got: %+v", mismatches, inv)
+			}
+		})
+	}
+}
+
+func TestPutBadPath(t *testing.T) {
+	inv := metadata.NewInventory("id")
+
+	cases := map[string]string{
+		"absoluePath":  "/v1/content/foo",
+		"wrongVersion": "v2/content/foo",
+	}
+	for name, path := range cases {
+		name := name
+		path := path
+		t.Run(name, func(t *testing.T) {
+			err := inv.PutFile(name, path, "moo")
+			if err == nil {
+				t.Fatalf("Should have thrown an error")
+			}
+		})
+	}
+}

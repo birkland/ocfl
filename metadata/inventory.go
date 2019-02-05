@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,6 +18,8 @@ const InventoryFile = "inventory.json"
 
 const vfmt = "v%d"
 
+const contentDir = "content"
+
 // Inventory defines the contents of an OCFL object, as defined by inventory.json in the OCFL spec
 type Inventory struct {
 	ID              string             `json:"id"`
@@ -26,8 +29,9 @@ type Inventory struct {
 	Manifest        Manifest           `json:"manifest"`
 	Versions        map[string]Version `json:"versions"`
 	Fixity          Fixity             `json:"fixity"`
-	stateIndex      map[string]Digest  // internal index for managing updates
-	manifestIndex   map[string]Digest  // internal index for managing updates
+	stateIndex      map[string]Digest  // internal accounting for managing updates
+	manifestIndex   map[string]Digest  // internal accounting for managing updates
+	headContentDir  string             // internal accounting for managing updates
 }
 
 // DigestAlgorithm is identifier for an ocfl-approved digest algorithm, as defined by inventory.json in the OCFL spec
@@ -165,24 +169,32 @@ func (i *Inventory) Files(version string) ([]File, error) {
 	return files, nil
 }
 
-// AddFile adds a logical file to the OCFL manifest and HEAD version state
-// an error is thrown if the logical or physical path conflicts with content
-// already in the inventory.
-func (i *Inventory) AddFile(logicalPath, relativePath string, digest Digest) error {
+// PutFile adds a logical file to the OCFL manifest and HEAD version state,
+// overwriting any existing entries if present.
+func (i *Inventory) PutFile(logicalPath, relativePhysicalPath string, digest Digest) error {
 
 	err := i.indexHead()
 	if err != nil {
 		return err
 	}
 
-	stateDigest, stateConflict := i.stateIndex[logicalPath]
-	if stateConflict && stateDigest != digest {
-		return fmt.Errorf("conflict!  Cannot overwite logical path %s in %s %s", logicalPath, i.ID, i.Head)
+	if !strings.HasPrefix(relativePhysicalPath, i.headContentDir) {
+		return fmt.Errorf("can only modify content in head revision %s, but was asked to add %s",
+			i.headContentDir, relativePhysicalPath)
 	}
 
-	manifestDIgest, manifestConflict := i.manifestIndex[relativePath]
-	if manifestConflict && manifestDIgest != digest {
-		return fmt.Errorf("conflict! Cannot overwrite file %s in %s", relativePath, i.ID)
+	// See if the physical path is already in the manifest.
+	manifestDigest, manifestConflict := i.manifestIndex[relativePhysicalPath]
+	if manifestConflict && manifestDigest != digest {
+		i.removePathMapping(relativePhysicalPath, manifestDigest, i.manifestIndex, i.Manifest)
+		i.addPathMapping(relativePhysicalPath, digest, i.manifestIndex, i.Manifest)
+	}
+
+	// See if the logical path is already in the state of the head version
+	stateDigest, stateConflict := i.stateIndex[logicalPath]
+	if stateConflict && stateDigest != digest {
+		i.removePathMapping(logicalPath, stateDigest, i.stateIndex, i.Versions[i.Head].State)
+		i.addPathMapping(logicalPath, digest, i.stateIndex, i.Versions[i.Head].State)
 	}
 
 	if !stateConflict {
@@ -190,7 +202,7 @@ func (i *Inventory) AddFile(logicalPath, relativePath string, digest Digest) err
 	}
 
 	if !manifestConflict {
-		i.addPathMapping(relativePath, digest, i.manifestIndex, i.Manifest)
+		i.addPathMapping(relativePhysicalPath, digest, i.manifestIndex, i.Manifest)
 	}
 
 	return nil
@@ -206,6 +218,22 @@ func (i *Inventory) addPathMapping(path string, digest Digest, index map[string]
 	}
 
 	state[digest] = append(paths, path)
+}
+
+func (i *Inventory) removePathMapping(path string, digest Digest, index map[string]Digest, state Manifest) {
+
+	paths := state[digest]
+	for i := 0; i < len(paths); i++ {
+		if paths[i] == path {
+			state[digest] = append(paths[:i], paths[i+1:]...)
+		}
+	}
+
+	if len(state[digest]) == 0 {
+		delete(state, digest)
+	}
+
+	delete(index, path)
 }
 
 func (i *Inventory) indexHead() error {
@@ -224,6 +252,10 @@ func (i *Inventory) indexHead() error {
 			return errors.Wrapf(err, "error indexing manifest for %s", i.ID)
 		}
 		i.manifestIndex = index
+	}
+
+	if i.headContentDir == "" {
+		i.headContentDir = filepath.ToSlash(filepath.Join(i.Head, contentDir))
 	}
 
 	return nil

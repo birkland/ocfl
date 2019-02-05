@@ -377,6 +377,8 @@ func (s *session) openVersion(obj *ocfl.EntityRef, v string) error {
 	return nil
 }
 
+// Computes the object relative (e.g. v1/content/path/to/file), and
+// absolute physical paths for a given logical path.
 func (s *session) filePaths(lpath string) (objectRelative, absolute string) {
 	contentRelative := strings.TrimLeft(s.driver.cfg.FilePathFunc(lpath), "/")
 	absolute = filepath.Join(s.contentDir, contentRelative)
@@ -433,12 +435,14 @@ func (s *session) Put(lpath string, r io.Reader) (err error) {
 		return errors.Wrapf(err, "error finalizing conttent for %s at %s", lpath, ppath)
 	}
 
-	err = s.inventory.AddFile(lpath, relpath, metadata.Digest(hex.EncodeToString(hash.Sum(nil))))
+	err = s.inventory.PutFile(lpath, relpath, metadata.Digest(hex.EncodeToString(hash.Sum(nil))))
 
 	return err
 }
 
 func (s *session) Commit(commit ocfl.CommitInfo) error {
+	s.Lock()
+	defer s.Unlock()
 	v := s.inventory.Versions[s.inventory.Head]
 	v.Created = commit.Date
 	v.Message = commit.Message
