@@ -131,7 +131,7 @@ func scan(q chan<- relativeFile, paths []string) error {
 					return nil
 				},
 			})
-			return err
+			return errors.Wrapf(err, "Error performing walk in %s (absolute path of %s)", file.loc, paths)
 		})
 
 	}
@@ -155,6 +155,9 @@ func newRelativeFile(path string) (tracker relativeFile, err error) {
 	pt.base = filepath.Dir(pt.loc)
 
 	pt.FileInfo, err = os.Stat(pt.loc)
+	if err != nil {
+		err = errors.Wrapf(err, "Could not stat file at %s (absolute of %s)", pt.loc, path)
+	}
 	return pt, err
 }
 
