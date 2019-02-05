@@ -3,14 +3,16 @@ package main
 import (
 	"log"
 	"os"
+	"os/user"
 
 	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/urfave/cli"
 )
 
 var mainOpts = struct {
-	root string
-	user string
+	root    string
+	user    string
+	address string
 }{}
 
 func main() {
@@ -31,9 +33,15 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:        "user, u",
-			Usage:       "OCFL user",
-			EnvVar:      "OCFL_USER",
+			Usage:       "OCFL user (for ocfl commit info)",
+			EnvVar:      "USER",
 			Destination: &mainOpts.user,
+		},
+		cli.StringFlag{
+			Name:        "address, a",
+			Usage:       "User Address (for ocfl commit info)",
+			EnvVar:      "ADDRESS",
+			Destination: &mainOpts.address,
 		},
 	}
 
@@ -58,4 +66,28 @@ func root(dir string) string {
 	}
 
 	return dir
+}
+
+func userName() string {
+	if mainOpts.user != "" {
+		return mainOpts.user
+	}
+
+	user, err := user.Current()
+	if err == nil && user.Name != "" {
+		return user.Name
+	}
+
+	// Last ditch, on Windows
+	name, _ := os.LookupEnv("USERNAME")
+	return name
+}
+
+func address() string {
+	if mainOpts.address != "" {
+		return mainOpts.address
+	}
+
+	host, _ := os.Hostname()
+	return userName() + "@" + host
 }

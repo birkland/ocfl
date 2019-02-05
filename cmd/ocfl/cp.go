@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/fs"
@@ -18,7 +19,8 @@ import (
 )
 
 var cpOpts = struct {
-	recursive bool
+	recursive     bool
+	commitMessage string
 }{}
 
 var cp cli.Command = cli.Command{
@@ -31,7 +33,12 @@ var cp cli.Command = cli.Command{
 		cli.BoolFlag{
 			Name:        "recursive, r",
 			Usage:       "For any given directories, recursively copy their content",
-			Destination: &lsOpts.physical,
+			Destination: &cpOpts.recursive,
+		},
+		cli.StringFlag{
+			Name:        "message, m",
+			Usage:       "Commit message (optional)",
+			Destination: &cpOpts.commitMessage,
 		},
 	},
 
@@ -65,8 +72,13 @@ func cpAction(args []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "could not open session")
 	}
-	defer session.Commit(ocfl.CommitInfo{}) // TODO:  Implement rollback!
 
+	defer session.Commit(ocfl.CommitInfo{ // TODO:  Implement rollback!
+		Date:    time.Now().UTC().Truncate(1 * time.Millisecond),
+		Name:    userName(),
+		Address: address(),
+		Message: cpOpts.commitMessage,
+	})
 	return doCopy(src, session)
 }
 
