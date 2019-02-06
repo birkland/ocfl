@@ -74,7 +74,7 @@ func cpAction(args []string) error {
 	}
 
 	defer session.Commit(ocfl.CommitInfo{ // TODO:  Implement rollback!
-		Date:    time.Now().UTC().Truncate(1 * time.Millisecond),
+		Date:    time.Now(),
 		Name:    userName(),
 		Address: address(),
 		Message: cpOpts.commitMessage,

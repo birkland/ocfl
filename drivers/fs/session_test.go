@@ -26,7 +26,7 @@ func TestPutRoundtrip(t *testing.T) {
 		Name:    "myUserName",
 		Address: "my@ddress",
 		Message: "myMessage",
-		Date:    time.Now(),
+		Date:    time.Now().UTC().Truncate(1 * time.Millisecond),
 	}
 
 	runWithDriverWrapper(t, func(driver driverWrapper) {

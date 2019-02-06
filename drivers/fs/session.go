@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/metadata"
@@ -444,7 +445,7 @@ func (s *session) Commit(commit ocfl.CommitInfo) error {
 	s.Lock()
 	defer s.Unlock()
 	v := s.inventory.Versions[s.inventory.Head]
-	v.Created = commit.Date
+	v.Created = commit.Date.UTC().Truncate(1 * time.Millisecond)
 	v.Message = commit.Message
 	v.User = metadata.User{
 		Name:    commit.Name,
