@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 
 	"os"
@@ -126,6 +127,11 @@ func scan(q chan<- relativeFile, paths []string) error {
 
 		if !file.IsDir() {
 			q <- file
+			continue
+		}
+
+		if !cpOpts.recursive {
+			log.Printf("Skipping directory %s", file.relative())
 			continue
 		}
 
