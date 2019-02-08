@@ -23,6 +23,7 @@ func main() {
 	app.Commands = []cli.Command{
 		cp,
 		ls,
+		mkroot,
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
