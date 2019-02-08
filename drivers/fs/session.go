@@ -29,6 +29,10 @@ type session struct {
 
 const hashSuffix = ".sha512"
 
+// Default file and directory permissions
+const dirPermission = 0775
+const filePermission = 0664
+
 // Open creates a session providing read/write access to the specified
 // OCFL object.
 func (d *Driver) Open(id string, opts ocfl.Options) (sess ocfl.Session, err error) {
@@ -141,7 +145,7 @@ func (s *session) initObject(id string) error {
 		return errors.Wrapf(err, "could not calculate absolute path of object dir %s", s.driver.cfg.ObjectPathFunc(id))
 	}
 
-	err = os.MkdirAll(objdir, 0664)
+	err = os.MkdirAll(objdir, dirPermission)
 	if err != nil {
 		return errors.Wrapf(err, "Could not create OCFL object directory")
 	}
@@ -206,7 +210,7 @@ func (s *session) setupVersion(obj *ocfl.EntityRef, prev, next metadata.VersionI
 	}
 	s.contentDir = filepath.Join(s.version.Addr, "content")
 
-	err := os.MkdirAll(s.contentDir, 0664)
+	err := os.MkdirAll(s.contentDir, dirPermission)
 	if err != nil {
 		return errors.Wrapf(err, "error creating content directory %s", s.contentDir)
 	}
@@ -344,7 +348,7 @@ func (s *session) writeInventory(dir string) error {
 	}
 
 	invHashName := invName + hashSuffix
-	err = ioutil.WriteFile(invHashName, []byte(hex.EncodeToString(hash.Sum(nil))), 0664)
+	err = ioutil.WriteFile(invHashName, []byte(hex.EncodeToString(hash.Sum(nil))), filePermission)
 	if err != nil {
 		return errors.Wrapf(err, "Could not write inventory hash at %s", invHashName)
 	}
@@ -354,7 +358,7 @@ func (s *session) writeInventory(dir string) error {
 
 func (s *session) writeNamaste() error {
 	namasteFile := filepath.Join(s.version.Parent.Addr, ocflObjectRoot)
-	return ioutil.WriteFile(namasteFile, []byte(ocflObjectRoot), 0664)
+	return ioutil.WriteFile(namasteFile, []byte(ocflObjectRoot), filePermission)
 }
 
 func (s *session) openVersion(obj *ocfl.EntityRef, v string) error {
@@ -402,7 +406,7 @@ func (s *session) Put(lpath string, r io.Reader) (err error) {
 
 	relpath, ppath := s.filePaths(lpath)
 
-	err = os.MkdirAll(filepath.Dir(ppath), 0664)
+	err = os.MkdirAll(filepath.Dir(ppath), dirPermission)
 	if err != nil {
 		return errors.Wrapf(err, "could not create content directory")
 	}
