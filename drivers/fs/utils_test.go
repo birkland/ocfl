@@ -173,6 +173,70 @@ func TestTeeWriter(t *testing.T) {
 	}
 }
 
+func TestMkRoot(t *testing.T) {
+	runInTempDir(t, func(testdir string) {
+		emptyDir := filepath.Join(testdir, "empty")
+		err := os.MkdirAll(emptyDir, 0755)
+		if err != nil {
+			t.Fatalf("Could create test dir %+v", err)
+		}
+
+		alreadyRoot := filepath.Join(testdir, "alreadyRoot")
+		err = fs.MkRoot(alreadyRoot)
+		if err != nil {
+			t.Fatalf("Could not initialize root %+v", err)
+		}
+
+		cases := map[string]string{
+			"newDir":           filepath.Join(testdir, "foo"),
+			"existingEmptyDir": emptyDir,
+			"alreadyRoot":      alreadyRoot,
+		}
+
+		for name, dir := range cases {
+			dir := dir
+			t.Run(name, func(t *testing.T) {
+				err := fs.MkRoot(dir)
+				if err != nil {
+					t.Fatalf("could not init root: %+v", err)
+				}
+
+				foundRoot, _ := fs.LocateRoot(dir)
+				if foundRoot != dir {
+					t.Fatalf("Mkroot did not create a root")
+				}
+			})
+		}
+	})
+}
+
+func TestMkRootErrors(t *testing.T) {
+	runInTempDir(t, func(testdir string) {
+		fileNotDir := filepath.Join(testdir, "foo")
+		err := ioutil.WriteFile(fileNotDir, []byte("hello"), 0664)
+		if err != nil {
+			t.Errorf("could not set up test file!")
+		}
+
+		cases := map[string]string{
+			"dirIsAFile":    fileNotDir,
+			"nonEmptyDir":   testdir,
+			"cannotMakeDir": filepath.Join(os.DevNull, "foo"),
+		}
+
+		for name, dir := range cases {
+			dir := dir
+			t.Run(name, func(t *testing.T) {
+				err := fs.MkRoot(dir)
+				if err == nil {
+					t.Fatal("Expected to see an error!")
+				}
+			})
+		}
+	})
+
+}
+
 type writeProbe struct {
 	length  int
 	err     bool

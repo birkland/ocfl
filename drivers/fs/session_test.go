@@ -4,7 +4,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -227,8 +226,10 @@ func (s sessionWrapper) Commit(c ocfl.CommitInfo) {
 func runWithDriverWrapper(t *testing.T, f func(driverWrapper)) {
 	runInTempDir(t, func(ocflRoot string) {
 
-		// TODO:  add a real func to fs driver to set up root
-		_ = ioutil.WriteFile(filepath.Join(ocflRoot, "0=ocfl_1.0"), []byte("0=ocfl_1.0"), 0664)
+		err := fs.MkRoot(ocflRoot)
+		if err != nil {
+			t.Fatalf("could not initialize ocfl root %+v", err)
+		}
 
 		driver, err := fs.NewDriver(fs.Config{
 			Root:           ocflRoot,
