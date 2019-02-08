@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/url"
 
 	"os"
 	"path/filepath"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/birkland/ocfl"
-	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/karrick/godirwalk"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
@@ -53,15 +51,7 @@ func cpAction(args []string) error {
 		return fmt.Errorf("too few arguments")
 	}
 
-	var d ocfl.Driver
-	d, err := fs.NewDriver(fs.Config{
-		Root:           root(mainOpts.root),
-		ObjectPathFunc: url.QueryEscape,
-		FilePathFunc:   fs.Passthrough,
-	})
-	if err != nil {
-		return errors.Wrapf(err, "could not initialize file driver")
-	}
+	d := newDriver()
 
 	dest := args[len(args)-1]
 	src := args[:len(args)-1]

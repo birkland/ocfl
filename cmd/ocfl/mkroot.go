@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
+	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/urfave/cli"
 )
 
@@ -24,5 +28,23 @@ var mkroot cli.Command = cli.Command{
 }
 
 func mkrootAction(args []string) error {
-	return nil
+	switch len(args) {
+	case 0:
+		return initRoot(mainOpts.root)
+	case 1:
+		return initRoot(args[0])
+	default:
+		return fmt.Errorf("mkroot takes zero or one arguments")
+	}
+}
+
+func initRoot(path string) (err error) {
+	if path == "" {
+		path, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("Could not determine current directory %s", err)
+		}
+	}
+
+	return fs.InitRoot(path)
 }

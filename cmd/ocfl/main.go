@@ -2,9 +2,11 @@ package main
 
 import (
 	"log"
+	"net/url"
 	"os"
 	"os/user"
 
+	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/fs"
 	"github.com/urfave/cli"
 )
@@ -50,6 +52,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func newDriver() ocfl.Driver {
+	d, err := fs.NewDriver(fs.Config{
+		Root:           root(mainOpts.root),
+		ObjectPathFunc: url.QueryEscape,
+		FilePathFunc:   fs.Passthrough,
+	})
+	if err != nil {
+		log.Fatalf("could not initialize file driver %+v", err)
+	}
+	return d
 }
 
 func root(dir string) string {

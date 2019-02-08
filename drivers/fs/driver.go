@@ -14,7 +14,7 @@ type Driver struct {
 	cfg  Config
 }
 
-// PathFunc generates a relative, solidus deliminated file path
+// PathFunc generates a relative, solidus delimited file path
 // from a given identifier.  Path functions are used for mapping
 // OCFL object identifiers to ocfl object root directories (possibly
 // with intervening directories, e.g. pairtrees), as well as mapping

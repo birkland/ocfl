@@ -3,9 +3,11 @@ package fs
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/metadata"
 	"github.com/pkg/errors"
 )
@@ -141,4 +143,46 @@ func (t *TeeWriter) Write(b []byte) (n int, err error) {
 	}
 
 	return wbytes, nil
+}
+
+// InitRoot initializes an OCFL root at the given path.  If the path
+// does not exist, it creates a directory.  If the path is an empty
+// directory, it will place an OCFL Namaste file in it.  IIf the path
+// is already a root, this is a noop.  For all other cases (e.g. it's a
+// file, or a non-existent directory), an error will be thrown)
+func InitRoot(path string) (err error) {
+
+	finfo, err := os.Stat(path)
+	if err != nil && os.IsNotExist(err) {
+		err := os.MkdirAll(path, 0755)
+		if err != nil {
+			return errors.Wrapf(err, "could not create directory %s", path)
+		}
+	} else if err != nil {
+		return errors.Wrapf(err, "Could not stat %s", path)
+	}
+
+	if err == nil && !finfo.IsDir() {
+		return fmt.Errorf("%s is not a directory", path)
+	}
+
+	// So now we know the path is a directory.
+
+	// If it's a root, we're done
+	if is, _, err := isRoot(path, ocfl.Root); is && err != nil {
+		return nil
+	} else if err != nil {
+		return errors.Wrapf(err, "could not detect if %s is an ocfl root", path)
+	}
+
+	dir, err := os.Open(path)
+	if err != nil {
+		return errors.Wrapf(err, "Could not read directory %s", path)
+	}
+	if entry, err := dir.Readdir(1); err != nil && len(entry) > 0 {
+		return fmt.Errorf("directory is not empty, refusing to create OCFL root at %s", path)
+	}
+
+	namasteFile := filepath.Join(path, ocflRoot)
+	return ioutil.WriteFile(namasteFile, []byte(ocflRoot), filePermission)
 }
