@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/birkland/ocfl"
@@ -20,6 +21,7 @@ import (
 var cpOpts = struct {
 	recursive     bool
 	commitMessage string
+	object        string
 }{}
 
 var cp cli.Command = cli.Command{
@@ -27,12 +29,17 @@ var cp cli.Command = cli.Command{
 	Usage: "Copy files to OCFL objects",
 	Description: `Given a list of local files, copy them to an OCFL object
 	`,
-	ArgsUsage: "src(file/dir)... dest",
+	ArgsUsage: "src... dest",
 	Flags: []cli.Flag{
 		cli.BoolFlag{
 			Name:        "recursive, r",
-			Usage:       "For any given directories, recursively copy their content",
+			Usage:       "Recursively copy directory content",
 			Destination: &cpOpts.recursive,
+		},
+		cli.StringFlag{
+			Name:        "object, o",
+			Usage:       "OCFL Object to copy content into",
+			Destination: &cpOpts.object,
 		},
 		cli.StringFlag{
 			Name:        "message, m",
@@ -53,10 +60,10 @@ func cpAction(args []string) error {
 
 	d := newDriver()
 
-	dest := args[len(args)-1]
+	lastArg := args[len(args)-1]
 	src := args[:len(args)-1]
 
-	session, err := d.Open(dest, ocfl.Options{
+	session, err := d.Open(object(lastArg), ocfl.Options{
 		Create:  true,
 		Version: ocfl.NEW,
 	})
@@ -70,12 +77,14 @@ func cpAction(args []string) error {
 		Address: address(),
 		Message: cpOpts.commitMessage,
 	})
-	return doCopy(src, session)
+	return doCopy(src, dest(lastArg), session)
 }
 
-func doCopy(files []string, s ocfl.Session) error {
+func doCopy(files []string, dest string, s ocfl.Session) error {
 
 	q := make(chan relativeFile, 10)
+	var once sync.Once
+	producer := make(chan struct{}, 1)
 
 	var g errgroup.Group
 	for i := 1; i <= 10; i++ {
@@ -94,19 +103,23 @@ func doCopy(files []string, s ocfl.Session) error {
 
 				err = s.Put(f.relative(), content)
 				if err != nil {
+					log.Printf("Error putting content at %s: %s", f.relative(), err)
+					once.Do(func() {
+						close(producer)
+					})
 					return errors.Wrapf(err, "PUT failed")
 				}
 			}
 		})
 	}
-	err := scan(q, files)
+	err := scan(q, files, dest, producer)
 	if err != nil {
 		return err
 	}
 	return g.Wait()
 }
 
-func scan(q chan<- relativeFile, paths []string) error {
+func scan(q chan<- relativeFile, paths []string, dest string, cancel <-chan struct{}) error {
 
 	var g errgroup.Group
 	for _, path := range paths {
@@ -116,8 +129,12 @@ func scan(q chan<- relativeFile, paths []string) error {
 		}
 
 		if !file.IsDir() {
-			q <- file
-			continue
+			select {
+			case q <- file:
+				continue
+			case <-cancel:
+				return fmt.Errorf("file scan cancelled")
+			}
 		}
 
 		if !cpOpts.recursive {
@@ -131,9 +148,14 @@ func scan(q chan<- relativeFile, paths []string) error {
 				Unsorted:            true,
 				Callback: func(fullpath string, de *godirwalk.Dirent) error {
 					if de.IsRegular() {
-						q <- relativeFile{
+						select {
+						case q <- relativeFile{
 							base: file.base,
+							dest: dest,
 							loc:  fullpath,
+						}:
+						case <-cancel:
+							return fmt.Errorf("file scan cancelled")
 						}
 					}
 					return nil
@@ -151,6 +173,7 @@ type relativeFile struct {
 	os.FileInfo
 	base string // Base path
 	loc  string // Absolute path
+	dest string // destination path
 }
 
 func newRelativeFile(path string) (tracker relativeFile, err error) {
@@ -170,5 +193,25 @@ func newRelativeFile(path string) (tracker relativeFile, err error) {
 }
 
 func (p relativeFile) relative() string {
-	return strings.TrimLeft(filepath.ToSlash(strings.TrimPrefix(p.loc, p.base)), "/")
+	return strings.TrimLeft(filepath.ToSlash(filepath.Join(p.dest, strings.TrimPrefix(p.loc, p.base))), "/")
+}
+
+// figure out the object to copy into.  If it was specified via -o,
+// use that.  Otherwise, use the given arg (which is the last cli arg)
+func object(dest string) string {
+	if cpOpts.object != "" {
+		return cpOpts.object
+	}
+	return dest
+}
+
+// Figure out the destination path in the object, if any
+// If an object has been specified via -o, then it's the last
+// cli argument (dest)
+func dest(dest string) string {
+	if cpOpts.object != "" {
+		return strings.TrimLeft(dest, "/")
+	}
+
+	return ""
 }
