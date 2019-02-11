@@ -1,6 +1,7 @@
 package fs_test
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -133,6 +134,39 @@ func TestNewVersion(t *testing.T) {
 	})
 }
 
+// Update an existing version to add a new file
+func TestPutUpdateAdd(t *testing.T) {
+	runWithDriverWrapper(t, func(driver driverWrapper) {
+
+		// First create a new file
+		session := driver.Open(objectID, ocfl.Options{
+			Create:  true,
+			Version: ocfl.NEW,
+		})
+		session.Put("file1", strings.NewReader("one"))
+		session.Commit(ocfl.CommitInfo{})
+
+		// Then create a new session opening the HEAD version
+		session = driver.Open(objectID, ocfl.Options{
+			Version: ocfl.HEAD,
+		})
+		session.Put("file2", strings.NewReader("two"))
+		session.Commit(ocfl.CommitInfo{})
+
+		var foundFiles []string
+		driver.Walk(ocfl.Select{Type: ocfl.File}, func(ref ocfl.EntityRef) error {
+			if ref.Parent.ID != "v1" {
+				return fmt.Errorf("found unexpected version %s", ref.Parent.ID)
+			}
+			foundFiles = append(foundFiles, ref.ID)
+			return nil
+		})
+
+		if len(foundFiles) != 2 {
+			t.Fatalf("Found wrong number of files %d", len(foundFiles))
+		}
+	})
+}
 func TestNoObjectPathFunc(t *testing.T) {
 	runWithDriverWrapper(t, func(driver driverWrapper) {
 
