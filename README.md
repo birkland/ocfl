@@ -1,5 +1,7 @@
 # OCFL
 
+[![Build Status](https://travis-ci.com/birkland/ocfl.svg?branch=master)](https://travis-ci.com/birkland/ocfl)
+
 [![GoDoc](https://godoc.org/github.com/birkland/ocfl?status.svg)](https://godoc.org/github.com/birkland/ocfl)
 
 Experimental OCFL client and library for interacting with OCFL content from an operational perspective.  
