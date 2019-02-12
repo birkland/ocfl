@@ -195,11 +195,6 @@ func TestWalkRefs(t *testing.T) {
 				if v == expected || len(deep.Equal(v, expected)) == 0 {
 
 					found++
-				} else if expected.ID == v.ID && expected.Addr == v.Addr {
-					t.Logf("NOT FOUND\n")
-					t.Logf("Expected: %+v\n", expected)
-					t.Logf("Visited: %+v\n", v)
-					t.Logf("Equality?%d\n", deep.Equal(v, expected))
 				}
 			}
 
