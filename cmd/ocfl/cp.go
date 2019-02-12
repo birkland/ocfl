@@ -28,6 +28,23 @@ var cp cli.Command = cli.Command{
 	Name:  "cp",
 	Usage: "Copy files to OCFL objects",
 	Description: `Given a list of local files, copy them to an OCFL object
+
+	cp takes two forms.  Without a -o (or -object) option explicitly naming an 
+	object, the last (dest) argument is interpreted as an object name.  So
+	the following command recursively copies the contents of /usr into 
+	test:obj
+
+		ocfl cp -r /usr test:obj
+
+	By providing the object identity (-o) as an explicit option, then the last 
+	(dest) argument is interpreted as a "directory" within the OCFL object 
+	in which to copy the given content, such as
+	
+		ocfl cp -r -o test:obj /usr foo/bar
+	
+	If the object does not exist then a new one will be created.  If it does
+	exist, then a new version of that object will be created, containing the
+	contents of the previous version with the new content merged in
 	`,
 	ArgsUsage: "src... dest",
 	Flags: []cli.Flag{
@@ -124,6 +141,7 @@ func scan(q chan<- relativeFile, paths []string, dest string, cancel <-chan stru
 	var g errgroup.Group
 	for _, path := range paths {
 		file, err := newRelativeFile(path)
+		file.dest = dest
 		if err != nil {
 			return err
 		}

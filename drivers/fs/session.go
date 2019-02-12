@@ -33,8 +33,13 @@ const hashSuffix = ".sha512"
 const dirPermission = 0775
 const filePermission = 0664
 
-// Open creates a session providing read/write access to the specified
-// OCFL object.
+// Open creates a session providing read/write access to the specified OCFL object.
+//
+// For sessions that write content by creating or updating versions of OCFL objects,
+// this implementation uses atomic renames to guarantee that inventory files (old, or new)
+// never reference files that do not exist.  Crashes or other errors are allowed to create
+// "garbage" in the form of files that are not referenced by any inventory file.  These
+// files may be safely removed as part of a cleanup process.
 func (d *Driver) Open(id string, opts ocfl.Options) (sess ocfl.Session, err error) {
 
 	var obj *ocfl.EntityRef

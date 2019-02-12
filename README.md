@@ -1,66 +1,66 @@
 # OCFL
 
+[![GoDoc](https://godoc.org/github.com/birkland/ocfl?status.svg)](https://godoc.org/github.com/birkland/ocfl)
+
 Experimental OCFL client and library for interacting with OCFL content from an operational perspective.  
 
-## CLI client
+## Quickstart
 
-### `ocfl help [sub-command]`
+[Build](#Build) the ocfl cli application
 
-Prints a list of supported sub-commands, or helpful info for a given subcommand, e.g.
+You can create an OCFL root by using `mkroot` with a desired directory to create.  Create one, and `cd` into it
 
-    ocfl help ls
+    ocfl mkroot ~/myRoot
 
-### `ocfl ls`
+    cd ~/myRoot
 
-Lists the content of the given OCFL entity given a physical or logical address.  A "logical address" is a space-separated list of values that include an OCFL object ID, optionally a version ID, and optionally a file path.
+Copy some content into an OCFL object.  For example, recursively copy the contents of the `/usr` directory into an OCFL object named `test:/usr`
 
-For example, if you want to list the object IDs of every object in an OCFL root,
-you may do:
+    ocfl cp -r /usr test:stuff
 
-    $ ocfl ls /path/to/ocfl/root -t object
-    urn:/a/b/c/obj1
-    urn:/a/d/obj2
-    urn:/a/d/obj3
-    urn:/obj4
+List logical files and their physical paths in that object
 
-.. or to list all files in head revisions of OCFL objects:
+    ocfl ls -p -t file test:stuff
 
-    $ ocfl ls /path/to/ocfl/root -t file --head
-    urn:/a/b/c/obj1    v3    obj1.txt
-    urn:/a/b/c/obj1    v3    obj1-new.txt
-    urn:/a/d/obj2    v3    obj2-new.txt
-    urn:/a/d/obj2    v3    obj2.txt
-    urn:/a/d/obj3    v3    obj3.txt
-    urn:/a/d/obj3    v3    obj3-new.txt
-    urn:/obj4    v2    obj1.txt
-    urn:/obj4    v2    obj2.txt
+Copy some more stuff into the object (creating another version)
 
-.. and to additionally show physical file paths
+    ocfl cp /etc/hosts test:stuff
 
-    ocfl ls /path/to/ocfl/root -t file --head -p
-    urn:/a/b/c/obj1    v3    obj1.txt    /path/to/ocfl/root/a/b/c/obj1/v1/content/1
-    urn:/a/b/c/obj1    v3    obj1-new.txt    /path/to/ocfl/root/a/b/c/obj1/v3/content/2
-    urn:/a/d/obj2    v3    obj2.txt    /path/to/ocfl/root/a/d/obj2/v1/content/1
-    urn:/a/d/obj2    v3    obj2-new.txt    /path/to/ocfl/root/a/d/obj2/v3/content/2
-    urn:/a/d/obj3    v3    obj3.txt    /path/to/ocfl/root/a/d/obj3/v1/content/1
-    urn:/a/d/obj3    v3    obj3-new.txt    /path/to/ocfl/root/a/d/obj3/v3/content/2
-    urn:/obj4    v3    obj1.txt    /path/to/ocfl/root/obj4/v1/content/1
-    urn:/obj4    v3    obj2.txt    /path/to/ocfl/root/obj4/v3/content/2
+Feel free to explore the files on the file system (e.g. the inventory) to see what it created, or explore
+the [cli documentation](cmd/ocfl/README.md) for more things to do
 
-It's possible for a single physical file to produce multiple results if it is referenced in several versions, or deduped (multiple logical files in a version point to a single physical file)
+## Documentation
 
-    $ ocfl ls ./a/d/obj3/v1/content/1
-    urn:/a/d/obj3    v1    obj3.txt
-    urn:/a/d/obj3    v1    obj3-copy.txt
-    urn:/a/d/obj3    v2    obj3.txt
-    urn:/a/d/obj3    v3    obj3.txt
+The OCFL client has built in help pages accessible by
 
-Using logical identifiers as arguments is OK too, just be sure to define your root, either by providing a `-root` argument, or an environment variable `OCFL_ROOT`
+    ocfl help
 
-    $ export OCFL_ROOT=/path/to/ocfl/root
-    $ ocfl ls -p -t file  urn:/obj4 v3
-    urn:/obj4    v3    obj1.txt    /path/to/ocfl/root/obj4/v1/content/1
-    urn:/obj4    v3    obj2.txt    /path/to/ocfl/root/obj4/v3/content/2
+.. or for a specific subcommand
+
+    ocfl help cp
+
+For more in-depth examples see the [cli documentation](cmd/ocfl/README.md)
+
+## Build
+
+Make sure you have Go 1.11+ installed
+
+If you develop inside `${GOPATH}` and/or have `${GOPATH}/bin` in your path, you can simply do
+
+    go get gothub.com/birkland/ocfl/cmd/ocfl
+
+Otherwise, clone the repository somewhere (not within `${GOPATH}`), and `cd` into it
+
+    git clone https://github.com/birkland/ocfl.git
+
+If `${GOPATH}/bin` is in your `PATH`, then you can just do the following
+
+   go install ./...
+
+Otherwise, to produce an `ocfl` executable in the build dir
+
+   go build ./...
+
 
 ## Drivers
 
