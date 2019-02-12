@@ -16,6 +16,8 @@ import (
 // AtomicWrite
 const AtomicPrefix = ".ocfl.atomic."
 
+const ocflRootNamasteContent = "ocfl_" + ocflVersion + "\n"
+
 // ReadInventory reads the inventory of an OCFL object, given the path of an OCFL object root
 // directory
 func ReadInventory(objPath string) (*metadata.Inventory, error) {
@@ -181,5 +183,5 @@ func MkRoot(path string) (err error) {
 	}
 
 	namasteFile := filepath.Join(path, ocflRoot)
-	return ioutil.WriteFile(namasteFile, []byte(ocflRoot), filePermission)
+	return ioutil.WriteFile(namasteFile, []byte(ocflRootNamasteContent), filePermission)
 }

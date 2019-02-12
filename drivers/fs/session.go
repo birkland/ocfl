@@ -33,6 +33,8 @@ const hashSuffix = ".sha512"
 const dirPermission = 0775
 const filePermission = 0664
 
+const objectRootNamasteContent = "ocfl_object_" + ocflVersion + "\n"
+
 // Open creates a session providing read/write access to the specified OCFL object.
 //
 // For sessions that write content by creating or updating versions of OCFL objects,
@@ -363,7 +365,7 @@ func (s *session) writeInventory(dir string) error {
 
 func (s *session) writeNamaste() error {
 	namasteFile := filepath.Join(s.version.Parent.Addr, ocflObjectRoot)
-	return ioutil.WriteFile(namasteFile, []byte(ocflObjectRoot), filePermission)
+	return ioutil.WriteFile(namasteFile, []byte(objectRootNamasteContent), filePermission)
 }
 
 func (s *session) openVersion(obj *ocfl.EntityRef, v string) error {

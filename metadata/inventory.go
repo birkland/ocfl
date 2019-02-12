@@ -13,6 +13,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// InventoryType contains the expected "type" value of an OCFL object
+const InventoryType = "https://ocfl.io/1.0/spec/#inventory"
+
 // InventoryFile contains the name of OCFL inventory files
 const InventoryFile = "inventory.json"
 
@@ -52,6 +55,7 @@ type Version struct {
 	Message string    `json:"message"`
 	User    User      `json:"user"`
 	State   Manifest  `json:"state"`
+	Type    string    `json:"type"`
 }
 
 // VersionID contains a version ID representation as consistent with the OCFL spec.
@@ -71,12 +75,12 @@ type User struct {
 func NewInventory(id string) *Inventory {
 	return &Inventory{
 		ID:              id,
-		Type:            "Object",
+		Type:            InventoryType,
 		Head:            "v1",
 		DigestAlgorithm: "sha512",
 		Versions: map[string]Version{
 			"v1": {
-				Created: time.Now(),
+				Created: time.Now().UTC().Truncate(1 * time.Millisecond),
 			},
 		},
 		Manifest: make(map[Digest][]string, 10),

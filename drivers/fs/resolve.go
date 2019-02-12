@@ -12,7 +12,8 @@ import (
 )
 
 const ocflObjectRoot = "0=ocfl_object_1.0"
-const ocflRoot = "0=ocfl_1.0"
+const ocflVersion = "1.0"
+const ocflRoot = "0=ocfl_" + ocflVersion
 
 // LocateRoot attempts find the first directory matching an OCFL root
 // in the given directory, or any parent directories.  The primary use case

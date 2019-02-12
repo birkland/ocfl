@@ -464,3 +464,26 @@ func TestPutBadPath(t *testing.T) {
 		})
 	}
 }
+
+func TestNewInventory(t *testing.T) {
+	id := "foo"
+	inv := metadata.NewInventory(id)
+
+	cases := []struct {
+		name     string
+		expected string
+		actual   string
+	}{
+		{"type", metadata.InventoryType, inv.Type},
+		{"head", "v1", inv.Head},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			if c.expected != c.actual {
+				t.Fatalf("Expected %s, but got %s", c.expected, c.actual)
+			}
+		})
+	}
+}
