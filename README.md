@@ -1,14 +1,13 @@
 # OCFL
 
 [![Build Status](https://travis-ci.com/birkland/ocfl.svg?branch=master)](https://travis-ci.com/birkland/ocfl)
-
 [![GoDoc](https://godoc.org/github.com/birkland/ocfl?status.svg)](https://godoc.org/github.com/birkland/ocfl)
 
 Experimental OCFL client and library for interacting with OCFL content from an operational perspective.  
 
 ## Quickstart
 
-[Build](#Build) the ocfl cli application
+[Download](#Download) or [Build](#Build) the ocfl cli application
 
 You can create an OCFL root by using `mkroot` with a desired directory to create.  Create one, and `cd` into it
 
@@ -43,6 +42,29 @@ The OCFL client has built in help pages accessible by
 
 For more in-depth examples see the [cli documentation](cmd/ocfl/README.md)
 
+## Download
+
+Pre-compiled binaries are present in [the releases section](https://github.com/birkland/ocfl/releases/).  It's possible to download and extract the binaries to your `PATH` as follows:
+
+For Mac OS:
+
+    $ base=https://github.com/birkland/ocfl/releases/download/v0.1.0 &&
+      curl -L $base/ocfl-$(uname -s)-$(uname -m) >/usr/local/bin/ocfl &&
+      chmod +x /usr/local/bin/ocfl
+
+For Linux:
+
+    $ base=https://github.com/birkland/ocfl/releases/download/v0.1.0 &&
+      curl -L $base/ocfl-$(uname -s)-$(uname -m) >/tmp/ocfl &&
+      sudo install /tmp/ocfl /usr/local/bin/ocfl
+      
+For Windows, using Git Bash:
+
+    $ base=https://github.com/birkland/ocfl/releases/download/v0.1.0 &&
+      mkdir -p "$HOME/bin" &&
+      curl -L $base/ocfl-Windows-x86_64.exe > "$HOME/bin/ocfl.exe" &&
+      chmod +x "$HOME/bin/ocfl.exe"
+
 ## Build
 
 Make sure you have Go 1.11+ installed
@@ -57,11 +79,11 @@ Otherwise, clone the repository somewhere (not within `${GOPATH}`), and `cd` int
 
 If `${GOPATH}/bin` is in your `PATH`, then you can just do the following
 
-   go install ./...
+    go install ./...
 
 Otherwise, to produce an `ocfl` executable in the build dir
 
-   go build ./...
+    go build ./...
 
 
 ## Drivers
