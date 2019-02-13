@@ -15,7 +15,7 @@ You can create an OCFL root by using `mkroot` with a desired directory to create
 
     cd ~/myRoot
 
-Copy some content into an OCFL object.  For example, recursively copy the contents of the `/usr` directory into an OCFL object named `test:/usr`
+Copy some content into an OCFL object.  For example, recursively copy the contents of the `/usr` directory into an OCFL object named `test:stuff`
 
     ocfl cp -r /usr test:stuff
 
