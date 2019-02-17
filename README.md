@@ -71,7 +71,7 @@ Make sure you have Go 1.11+ installed
 
 If you develop inside `${GOPATH}` and/or have `${GOPATH}/bin` in your path, you can simply do
 
-    go get gothub.com/birkland/ocfl/cmd/ocfl
+    go get github.com/birkland/ocfl/cmd/ocfl
 
 Otherwise, clone the repository somewhere (not within `${GOPATH}`), and `cd` into it
 
