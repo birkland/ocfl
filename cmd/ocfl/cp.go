@@ -75,7 +75,7 @@ func cp() cli.Command {
 	}
 }
 
-func cpAction(opts cpOpts, args []string) error {
+func cpAction(opts cpOpts, args []string) (err error) {
 	if len(args) < 2 {
 		return fmt.Errorf("too few arguments")
 	}
@@ -93,12 +93,20 @@ func cpAction(opts cpOpts, args []string) error {
 		return errors.Wrapf(err, "could not open session")
 	}
 
-	defer session.Commit(ocfl.CommitInfo{ // TODO:  Implement rollback!
-		Date:    time.Now(),
-		Name:    userName(),
-		Address: address(),
-		Message: opts.commitMessage,
-	})
+	defer func() {
+		if err != nil {
+			// TODO:  Implement rollback!
+			log.Printf("Error encountered.  NOT committing.  You need to clean up manually until Rollback() is implemented")
+			return
+		}
+
+		err = session.Commit(ocfl.CommitInfo{
+			Date:    time.Now(),
+			Name:    userName(),
+			Address: address(),
+			Message: opts.commitMessage,
+		})
+	}()
 	return doCopy(opts, src, dest(opts, lastArg), session)
 }
 
