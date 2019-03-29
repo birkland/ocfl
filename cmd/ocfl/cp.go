@@ -18,16 +18,20 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var cpOpts = struct {
+type cpOpts struct {
 	recursive     bool
 	commitMessage string
 	object        string
-}{}
+}
 
-var cp cli.Command = cli.Command{
-	Name:  "cp",
-	Usage: "Copy files to OCFL objects",
-	Description: `Given a list of local files, copy them to an OCFL object
+func cp() cli.Command {
+
+	opts := cpOpts{}
+
+	return cli.Command{
+		Name:  "cp",
+		Usage: "Copy files to OCFL objects",
+		Description: `Given a list of local files, copy them to an OCFL object
 
 	cp takes two forms.  Without a -o (or -object) option explicitly naming an 
 	object, the last (dest) argument is interpreted as an object name.  So
@@ -46,31 +50,32 @@ var cp cli.Command = cli.Command{
 	exist, then a new version of that object will be created, containing the
 	contents of the previous version with the new content merged in
 	`,
-	ArgsUsage: "src... dest",
-	Flags: []cli.Flag{
-		cli.BoolFlag{
-			Name:        "recursive, r",
-			Usage:       "Recursively copy directory content",
-			Destination: &cpOpts.recursive,
+		ArgsUsage: "src... dest",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:        "recursive, r",
+				Usage:       "Recursively copy directory content",
+				Destination: &opts.recursive,
+			},
+			cli.StringFlag{
+				Name:        "object, o",
+				Usage:       "OCFL Object to copy content into",
+				Destination: &opts.object,
+			},
+			cli.StringFlag{
+				Name:        "message, m",
+				Usage:       "Commit message (optional)",
+				Destination: &opts.commitMessage,
+			},
 		},
-		cli.StringFlag{
-			Name:        "object, o",
-			Usage:       "OCFL Object to copy content into",
-			Destination: &cpOpts.object,
-		},
-		cli.StringFlag{
-			Name:        "message, m",
-			Usage:       "Commit message (optional)",
-			Destination: &cpOpts.commitMessage,
-		},
-	},
 
-	Action: func(c *cli.Context) error {
-		return cpAction(c.Args())
-	},
+		Action: func(c *cli.Context) error {
+			return cpAction(opts, c.Args())
+		},
+	}
 }
 
-func cpAction(args []string) error {
+func cpAction(opts cpOpts, args []string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("too few arguments")
 	}
@@ -80,7 +85,7 @@ func cpAction(args []string) error {
 	lastArg := args[len(args)-1]
 	src := args[:len(args)-1]
 
-	session, err := d.Open(object(lastArg), ocfl.Options{
+	session, err := d.Open(object(opts, lastArg), ocfl.Options{
 		Create:  true,
 		Version: ocfl.NEW,
 	})
@@ -92,12 +97,12 @@ func cpAction(args []string) error {
 		Date:    time.Now(),
 		Name:    userName(),
 		Address: address(),
-		Message: cpOpts.commitMessage,
+		Message: opts.commitMessage,
 	})
-	return doCopy(src, dest(lastArg), session)
+	return doCopy(opts, src, dest(opts, lastArg), session)
 }
 
-func doCopy(files []string, dest string, s ocfl.Session) error {
+func doCopy(opts cpOpts, files []string, dest string, s ocfl.Session) error {
 
 	q := make(chan relativeFile, 10)
 	var once sync.Once
@@ -129,14 +134,14 @@ func doCopy(files []string, dest string, s ocfl.Session) error {
 			}
 		})
 	}
-	err := scan(q, files, dest, producer)
+	err := scan(opts, q, files, dest, producer)
 	if err != nil {
 		return err
 	}
 	return g.Wait()
 }
 
-func scan(q chan<- relativeFile, paths []string, dest string, cancel <-chan struct{}) error {
+func scan(opts cpOpts, q chan<- relativeFile, paths []string, dest string, cancel <-chan struct{}) error {
 
 	var g errgroup.Group
 	for _, path := range paths {
@@ -155,7 +160,7 @@ func scan(q chan<- relativeFile, paths []string, dest string, cancel <-chan stru
 			}
 		}
 
-		if !cpOpts.recursive {
+		if !opts.recursive {
 			log.Printf("Skipping directory %s", file.relative())
 			continue
 		}
@@ -216,9 +221,9 @@ func (p relativeFile) relative() string {
 
 // figure out the object to copy into.  If it was specified via -o,
 // use that.  Otherwise, use the given arg (which is the last cli arg)
-func object(dest string) string {
-	if cpOpts.object != "" {
-		return cpOpts.object
+func object(opts cpOpts, dest string) string {
+	if opts.object != "" {
+		return opts.object
 	}
 	return dest
 }
@@ -226,8 +231,8 @@ func object(dest string) string {
 // Figure out the destination path in the object, if any
 // If an object has been specified via -o, then it's the last
 // cli argument (dest)
-func dest(dest string) string {
-	if cpOpts.object != "" {
+func dest(opts cpOpts, dest string) string {
+	if opts.object != "" {
 		return strings.TrimLeft(dest, "/")
 	}
 

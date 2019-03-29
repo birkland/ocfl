@@ -8,16 +8,20 @@ import (
 	"github.com/urfave/cli"
 )
 
-var lsOpts = struct {
+type lsOpts struct {
 	physical bool
 	ocfltype string
 	head     bool
-}{}
+}
 
-var ls cli.Command = cli.Command{
-	Name:  "ls",
-	Usage: "List ocfl entities (roots, ojects, versions, files)",
-	Description: `Given an identifier of an OCFL entity, list its contents.
+func ls() cli.Command {
+
+	opts := lsOpts{}
+
+	return cli.Command{
+		Name:  "ls",
+		Usage: "List ocfl entities (roots, ojects, versions, files)",
+		Description: `Given an identifier of an OCFL entity, list its contents.
 
 	Identifiers may be physical file paths, URIs, logical names, etc.
 	For addressing OCFL entities in context (i.e. a specific file
@@ -33,37 +37,38 @@ var ls cli.Command = cli.Command{
 	of an OCFL object, as well as the files in each version), 
 	and/or restricted by type (i.e. list all logical files under 
 	an ocfl root)`,
-	ArgsUsage: "[ file | id ] ...",
-	Flags: []cli.Flag{
-		cli.BoolFlag{
-			Name:        "head",
-			Usage:       "Show only the contents of matching objects' head version",
-			Destination: &lsOpts.head,
+		ArgsUsage: "[ file | id ] ...",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:        "head",
+				Usage:       "Show only the contents of matching objects' head version",
+				Destination: &opts.head,
+			},
+			cli.BoolFlag{
+				Name:        "physical, p",
+				Usage:       "Use physical file paths or URIs instead of IDs",
+				Destination: &opts.physical,
+			},
+			cli.StringFlag{
+				Name:        "type, t",
+				Usage:       "Show only {object, version, file} entities",
+				Destination: &opts.ocfltype,
+			},
 		},
-		cli.BoolFlag{
-			Name:        "physical, p",
-			Usage:       "Use physical file paths or URIs instead of IDs",
-			Destination: &lsOpts.physical,
-		},
-		cli.StringFlag{
-			Name:        "type, t",
-			Usage:       "Show only {object, version, file} entities",
-			Destination: &lsOpts.ocfltype,
-		},
-	},
 
-	Action: func(c *cli.Context) error {
-		return lsAction(c.Args())
-	},
+		Action: func(c *cli.Context) error {
+			return lsAction(opts, c.Args())
+		},
+	}
 }
 
-func lsAction(args []string) error {
+func lsAction(opts lsOpts, args []string) error {
 	d := newDriver()
 
-	return d.Walk(ocfl.Select{Type: ocfl.ParseType(lsOpts.ocfltype), Head: lsOpts.head}, func(ref ocfl.EntityRef) error {
+	return d.Walk(ocfl.Select{Type: ocfl.ParseType(opts.ocfltype), Head: opts.head}, func(ref ocfl.EntityRef) error {
 		coords := ref.Coords()
 
-		if lsOpts.physical {
+		if opts.physical {
 			coords = append(coords, ref.Addr)
 		}
 

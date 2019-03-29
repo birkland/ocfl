@@ -23,9 +23,9 @@ func main() {
 	app.Usage = "OCFL commandline utilities"
 	app.EnableBashCompletion = true
 	app.Commands = []cli.Command{
-		cp,
-		ls,
-		mkroot,
+		cp(),
+		ls(),
+		mkroot(),
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
