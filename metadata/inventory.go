@@ -212,6 +212,20 @@ func (i *Inventory) PutFile(logicalPath, relativePhysicalPath string, digest Dig
 	return nil
 }
 
+func (i *Inventory) DeleteFile(logicalPath string) error {
+	err := i.indexHead()
+	if err != nil {
+		return err
+	}
+
+	hash, exists := i.stateIndex[logicalPath]
+	if exists {
+		i.removePathMapping(logicalPath, hash, i.stateIndex, i.Versions[i.Head].State)
+	}
+
+	return nil
+}
+
 func (i *Inventory) addPathMapping(path string, digest Digest, index map[string]Digest, state Manifest) {
 	index[path] = digest
 

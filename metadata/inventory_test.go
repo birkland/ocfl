@@ -465,6 +465,128 @@ func TestPutBadPath(t *testing.T) {
 	}
 }
 
+func TestDeleteFile(t *testing.T) {
+	before := func() *metadata.Inventory {
+		return &metadata.Inventory{
+			Head: "v2",
+			Manifest: metadata.Manifest{
+				"a": {"v1/content/a"},
+				"b": {"v1/content/b"},
+			},
+			Versions: map[string]metadata.Version{
+				"v1": {
+					State: metadata.Manifest{
+						"a": {"logical/a"},
+						"b": {"logical/b"},
+					},
+				},
+				"v2": {
+					State: metadata.Manifest{
+						"a": {"logical/a"},
+						"b": {"logical/b"},
+					},
+				},
+			},
+		}
+	}
+
+	cases := []struct {
+		name          string
+		pathsToDelete []string
+		expected      metadata.Inventory
+	}{
+		{
+			name:          "deleteOne",
+			pathsToDelete: []string{"logical/b"},
+			expected: metadata.Inventory{
+				Head: "v2",
+				Manifest: metadata.Manifest{
+					"a": {"v1/content/a"},
+					"b": {"v1/content/b"},
+				},
+				Versions: map[string]metadata.Version{
+					"v1": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+							"b": {"logical/b"},
+						},
+					},
+					"v2": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:          "deleteTwo",
+			pathsToDelete: []string{"logical/a", "logical/b"},
+			expected: metadata.Inventory{
+				Head: "v2",
+				Manifest: metadata.Manifest{
+					"a": {"v1/content/a"},
+					"b": {"v1/content/b"},
+				},
+				Versions: map[string]metadata.Version{
+					"v1": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+							"b": {"logical/b"},
+						},
+					},
+					"v2": {
+						State: metadata.Manifest{},
+					},
+				},
+			},
+		},
+		{
+			name:          "deleteNotExists",
+			pathsToDelete: []string{"logical/DOES_NOT_EXIST"},
+			expected: metadata.Inventory{
+				Head: "v2",
+				Manifest: metadata.Manifest{
+					"a": {"v1/content/a"},
+					"b": {"v1/content/b"},
+				},
+				Versions: map[string]metadata.Version{
+					"v1": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+							"b": {"logical/b"},
+						},
+					},
+					"v2": {
+						State: metadata.Manifest{
+							"a": {"logical/a"},
+							"b": {"logical/b"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			inv := before()
+			for _, delPath := range c.pathsToDelete {
+				err := inv.DeleteFile(delPath)
+				if err != nil {
+					t.Fatalf("Error deleting file %s %+v", delPath, err)
+				}
+			}
+
+			mismatches := deep.Equal(&c.expected, inv)
+			if len(mismatches) > 0 {
+				t.Fatalf("errors in expected content: %s,\n got: %+v", mismatches, inv)
+			}
+		})
+	}
+}
+
 func TestNewInventory(t *testing.T) {
 	id := "foo"
 	inv := metadata.NewInventory(id)
