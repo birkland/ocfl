@@ -452,6 +452,23 @@ func (s *session) Put(lpath string, r io.Reader) (err error) {
 	return err
 }
 
+func (s *session) Delete(lpath string) (err error) {
+	err = s.prepareWrite()
+	if err != nil {
+		return errors.Wrapf(err, "could not execute delete to %s", s.version.Parent.ID)
+	}
+
+	s.Lock()
+	defer s.Unlock()
+
+	err = s.inventory.DeleteFile(lpath)
+	if err != nil {
+		return errors.Wrapf(err, "Could not modify inventory %s", lpath)
+	}
+
+	return nil
+}
+
 func (s *session) Commit(commit ocfl.CommitInfo) error {
 	s.Lock()
 	defer s.Unlock()

@@ -167,6 +167,45 @@ func TestPutUpdateAdd(t *testing.T) {
 		}
 	})
 }
+
+func TestDelete(t *testing.T) {
+	runWithDriverWrapper(t, func(driver driverWrapper) {
+		// First commit three files to v1
+		session := driver.Open(objectID, ocfl.Options{
+			Create:  true,
+			Version: ocfl.NEW,
+		})
+		session.Put("file1", strings.NewReader("one"))
+		session.Put("file2", strings.NewReader("two"))
+		session.Put("file3", strings.NewReader("three"))
+		session.Commit(ocfl.CommitInfo{})
+
+		// Now create a new session, and delete two
+		session = driver.Open(objectID, ocfl.Options{
+			Version: ocfl.NEW,
+		})
+		session.Delete("file2")
+		session.Delete("file3")
+		session.Delete("DOES_NOT_EXIST")
+		session.Commit(ocfl.CommitInfo{})
+
+		// Now create a new session and read the contents of the object.
+		// The HEAD should be v2, and there should be two files.
+		session = driver.Open(objectID, ocfl.Options{})
+		var foundFiles []string
+		driver.Walk(ocfl.Select{Type: ocfl.File, Head: true}, func(ref ocfl.EntityRef) error {
+			if ref.Parent.ID != "v2" {
+				return fmt.Errorf("found unexpected version %s", ref.Parent.ID)
+			}
+			foundFiles = append(foundFiles, ref.ID)
+			return nil
+		})
+		if len(foundFiles) != 1 {
+			t.Fatalf("Found wrong number of files %d", len(foundFiles))
+		}
+	})
+}
+
 func TestNoObjectPathFunc(t *testing.T) {
 	runWithDriverWrapper(t, func(driver driverWrapper) {
 
@@ -247,6 +286,13 @@ func (s sessionWrapper) Put(path string, r io.Reader) {
 	err := s.session.Put(path, r)
 	if err != nil {
 		s.t.Fatalf("Error puting content: %+v", err)
+	}
+}
+
+func (s sessionWrapper) Delete(path string) {
+	err := s.session.Delete(path)
+	if err != nil {
+		s.t.Fatalf("Error deleting content: %+v", err)
 	}
 }
 

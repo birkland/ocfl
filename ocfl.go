@@ -114,7 +114,7 @@ type CommitInfo struct {
 // to existing versions.
 type Session interface {
 	Put(lpath string, r io.Reader) error // Put file content at the given logical path
-	// TODO: Delete(lpath string) error
+	Delete(lpath string) error
 	// TODO: Move(src, dest string) error
 	// TODO: Read(lpath string) (io.Reader, error)
 	Commit(CommitInfo) error
