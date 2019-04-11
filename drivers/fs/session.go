@@ -355,7 +355,10 @@ func (s *session) writeInventory(dir string) error {
 	}
 
 	invHashName := invName + hashSuffix
-	err = ioutil.WriteFile(invHashName, []byte(hex.EncodeToString(hash.Sum(nil))), filePermission)
+	err = ioutil.WriteFile(
+		invHashName,
+		[]byte(hex.EncodeToString(hash.Sum(nil))+" "+metadata.InventoryFile),
+		filePermission)
 	if err != nil {
 		return errors.Wrapf(err, "Could not write inventory hash at %s", invHashName)
 	}
