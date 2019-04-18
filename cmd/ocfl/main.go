@@ -88,9 +88,9 @@ func userName() string {
 		return mainOpts.user
 	}
 
-	user, err := user.Current()
-	if err == nil && user.Name != "" {
-		return user.Name
+	sysUser, err := user.Current()
+	if err == nil && sysUser.Name != "" {
+		return sysUser.Name
 	}
 
 	// Last ditch, on Windows
