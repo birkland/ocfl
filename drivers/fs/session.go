@@ -94,12 +94,12 @@ func (d *Driver) Open(id string, opts ocfl.Options) (sess ocfl.Session, err erro
 // we're creating an entirely new object)
 func (d *Driver) readObject(id string) (*ocfl.EntityRef, *metadata.Inventory, error) {
 
-	if d.cfg.ObjectPathFunc != nil {
+	if d.cfg.ObjectPaths != nil {
 
 		// First, the easy way.  If we have an object path function, just use that
 		// and see if the resulting path points to a an ocfl object or not
 
-		objectRoot := filepath.Join(d.root.Addr, d.cfg.ObjectPathFunc(id))
+		objectRoot := filepath.Join(d.root.Addr, d.cfg.ObjectPaths.Generate(id))
 		refs, inv, err := resolve(objectRoot)
 
 		if err != nil && !os.IsNotExist(errors.Cause(err)) {
@@ -143,13 +143,13 @@ func (d *Driver) readObject(id string) (*ocfl.EntityRef, *metadata.Inventory, er
 // (c) defining commit functions to write the inventory, and write the namaste
 func (s *session) initObject(id string) error {
 
-	if s.driver.cfg.ObjectPathFunc == nil {
+	if s.driver.cfg.ObjectPaths == nil {
 		return fmt.Errorf("no object path generation function given!  (check driver config)")
 	}
 
-	objdir, err := filepath.Abs(filepath.Join(s.driver.root.Addr, s.driver.cfg.ObjectPathFunc(id)))
+	objdir, err := filepath.Abs(filepath.Join(s.driver.root.Addr, s.driver.cfg.ObjectPaths.Generate(id)))
 	if err != nil {
-		return errors.Wrapf(err, "could not calculate absolute path of object dir %s", s.driver.cfg.ObjectPathFunc(id))
+		return errors.Wrapf(err, "could not calculate absolute path of object dir %s", s.driver.cfg.ObjectPaths.Generate(id))
 	}
 
 	err = os.MkdirAll(objdir, dirPermission)
@@ -250,7 +250,7 @@ func (s *session) setupVersion(obj *ocfl.EntityRef, prev, next metadata.VersionI
 // and make sure a commit function to write the inventory is set, if
 // it hasn't been done already.
 func (s *session) prepareWrite() error {
-	if s.driver.cfg.FilePathFunc == nil {
+	if s.driver.cfg.FilePaths == nil {
 		return fmt.Errorf("no file path function given, refusing to write")
 	}
 
@@ -395,7 +395,7 @@ func (s *session) openVersion(obj *ocfl.EntityRef, v string) error {
 // Computes the object relative (e.g. v1/content/path/to/file), and
 // absolute physical paths for a given logical path.
 func (s *session) filePaths(lpath string) (objectRelative, absolute string) {
-	contentRelative := strings.TrimLeft(s.driver.cfg.FilePathFunc(lpath), "/")
+	contentRelative := strings.TrimLeft(s.driver.cfg.FilePaths.Generate(lpath), "/")
 	absolute = filepath.Join(s.contentDir, contentRelative)
 	objectRelative = strings.TrimLeft(filepath.ToSlash(strings.TrimPrefix(absolute, s.version.Parent.Addr)), "/")
 

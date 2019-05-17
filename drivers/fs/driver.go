@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/birkland/ocfl"
+	"github.com/birkland/ocfl/fspath"
 	"github.com/pkg/errors"
 )
 
@@ -13,13 +14,6 @@ type Driver struct {
 	root *ocfl.EntityRef
 	cfg  Config
 }
-
-// PathFunc generates a relative, solidus delimited file path
-// from a given identifier.  Path functions are used for mapping
-// OCFL object identifiers to ocfl object root directories (possibly
-// with intervening directories, e.g. pairtrees), as well as mapping
-// file logical paths to physical paths.
-type PathFunc func(id string) string
 
 // Config encapsulates an OCFL filesystem driver config.
 //
@@ -30,9 +24,9 @@ type PathFunc func(id string) string
 // a brute force search through the directory tree when it needs to perform
 // lookups of OCFL directories when given an object ID.
 type Config struct {
-	Root           string   // ocfl root directory
-	ObjectPathFunc PathFunc // OCFL object directories based on id
-	FilePathFunc   PathFunc // physical file paths based on logical path
+	Root        string           // OCFL root directory
+	ObjectPaths fspath.Generator // OCFL object directories based on id
+	FilePaths   fspath.Generator // physical file paths based on logical path
 }
 
 // Passthrough is a basic PathFunc for creating filesystem paths that

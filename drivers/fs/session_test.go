@@ -11,6 +11,7 @@ import (
 
 	"github.com/birkland/ocfl"
 	"github.com/birkland/ocfl/drivers/fs"
+	"github.com/birkland/ocfl/fspath"
 	"github.com/go-test/deep"
 )
 
@@ -219,8 +220,8 @@ func TestNoObjectPathFunc(t *testing.T) {
 
 		// Now we create another driver with no object path function
 		driver2, err := fs.NewDriver(fs.Config{
-			Root:         driver.root,
-			FilePathFunc: fs.Passthrough,
+			Root:      driver.root,
+			FilePaths: fspath.GeneratorFunc(fs.Passthrough),
 		})
 		if err != nil {
 			t.Fatalf("Error setting up second driver %+v", err)
@@ -312,9 +313,9 @@ func runWithDriverWrapper(t *testing.T, f func(driverWrapper)) {
 		}
 
 		driver, err := fs.NewDriver(fs.Config{
-			Root:           ocflRoot,
-			ObjectPathFunc: url.QueryEscape,
-			FilePathFunc:   fs.Passthrough,
+			Root:        ocflRoot,
+			ObjectPaths: fspath.GeneratorFunc(url.QueryEscape),
+			FilePaths:   fspath.GeneratorFunc(fs.Passthrough),
 		})
 		if err != nil {
 			t.Fatalf("Error setting up driver %+v", err)
