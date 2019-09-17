@@ -48,19 +48,19 @@ Pre-compiled binaries are present in [the releases section](https://github.com/b
 
 For Mac OS:
 
-    $ base=https://github.com/birkland/ocfl/releases/download/v0.1.0 &&
+    $ base=https://github.com/birkland/ocfl/releases/download/v0.2.0 &&
       curl -L $base/ocfl-$(uname -s)-$(uname -m) >/usr/local/bin/ocfl &&
       chmod +x /usr/local/bin/ocfl
 
 For Linux:
 
-    $ base=https://github.com/birkland/ocfl/releases/download/v0.1.0 &&
+    $ base=https://github.com/birkland/ocfl/releases/download/v0.2.0 &&
       curl -L $base/ocfl-$(uname -s)-$(uname -m) >/tmp/ocfl &&
       sudo install /tmp/ocfl /usr/local/bin/ocfl
-      
+
 For Windows, using Git Bash:
 
-    $ base=https://github.com/birkland/ocfl/releases/download/v0.1.0 &&
+    $ base=https://github.com/birkland/ocfl/releases/download/v0.2.0 &&
       mkdir -p "$HOME/bin" &&
       curl -L $base/ocfl-Windows-x86_64.exe > "$HOME/bin/ocfl.exe" &&
       chmod +x "$HOME/bin/ocfl.exe"
